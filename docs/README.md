@@ -1,5 +1,9 @@
 # Documentação
 
+## Plano de desenvolvimento
+
+[development-plan.md](development-plan.md): fases incrementais, cada uma com entregas e critérios de validação.
+
 ## Architecture Decision Records (ADR)
 
 Decisões arquiteturais relevantes ficam em [`adr/`](adr/), numeradas sequencialmente com nome em inglês (`NNNN-short-title.md`).
