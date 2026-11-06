@@ -34,7 +34,7 @@ Agente **híbrido**: **function calling com tools tipadas** sobre dados estrutur
 ### 2.1 Visão geral
 
 ```
-ingest/ (Python, idempotente)
+emporio.ingest (Python, idempotente)
   CSV → validação/limpeza → Postgres (tabelas relacionais, specs → jsonb)
   PDF → extração → chunk por seção → embeddings → pgvector
 
@@ -66,7 +66,7 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 | Histórico | **LangGraph `PostgresSaver`**, `thread_id` por sessão | Contexto multi-turno (ex.: cliente informa nº do pedido e depois pergunta sobre devolução). | Memória em processo (perde ao reiniciar). |
 | Cálculos de preço | **Determinísticos no código** (promoção, PIX 5%, parcelamento, frete) | O manual proíbe informar preços sem consultar o sistema; LLM erra aritmética. | Deixar o LLM calcular (não confiável). |
 | Gerenciador de pacotes | **uv** + `pyproject.toml` | Rápido, lockfile reprodutível. | pip + requirements.txt. |
-| Ingestão | **Script Python idempotente** (`python -m ingest`) | Volume pequeno; foco em validação e limpeza, não em orquestração. | Airflow/Prefect (overkill). |
+| Ingestão | **Script Python idempotente** (`python -m emporio.ingest`), dentro do pacote da aplicação | Volume pequeno; foco em validação e limpeza, não em orquestração. Um único pacote instalável compartilha config e conexão com o app. | Airflow/Prefect (overkill). |
 | Testes | **pytest em três camadas** (unit, integration, e2e) + evals (ver 2.6) | Cada camada cobre um tipo de risco diferente com custo proporcional. | Apenas evals (não isola falhas de lógica); apenas unitários (não cobre SQL nem comportamento do LLM). |
 | Idioma | **Inglês** para nomes de arquivos, código, tools e commits; **pt-BR** para documentação e textos voltados ao cliente | Padrão de mercado para código; atendimento é em português. | Tudo em português (mistura com APIs/bibliotecas em inglês). |
 
