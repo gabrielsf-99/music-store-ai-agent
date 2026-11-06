@@ -1,0 +1,49 @@
+# Local scratch files
+.temp/*
+.CLAUDE.md
+
+# Secrets (never commit credentials)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Virtual environments (uv)
+.venv/
+venv/
+
+# Tests and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Chainlit runtime files
+.chainlit/translations/
+.files/
+
+# Local embedding model cache
+.cache/
+local_cache/
+
+# Local database volumes
+pgdata/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
