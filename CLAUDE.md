@@ -35,8 +35,8 @@ A arquitetura está definida em [docs/adr/0001-agent-architecture.md](docs/adr/0
 ```
 data/              CSVs e PDF de entrada (products.csv, ..., store_policies.pdf)
 docs/              documentação e ADRs
-src/emporio/       código da aplicação (agent/, tools/, db/, prompts/)
-ingest/            pipeline de ingestão (python -m ingest)
+src/emporio/       código da aplicação (agent/, tools/, db/, prompts/, domain/, rag/)
+src/emporio/ingest/  pipeline de ingestão (uv run python -m emporio.ingest)
 evals/             perguntas de teste e script de avaliação
 examples/          3–5 conversas de exemplo (.md) — entregável obrigatório
 tests/
@@ -64,6 +64,14 @@ Estratégia completa no ADR 0001, seção 2.6.
 
 - **Nunca commitar credenciais.** `.env` fica no `.gitignore`; manter `.env.example` sem valores reais.
 - Antes de sugerir `git add`, conferir que nenhum arquivo com segredos (`.env`, chaves, tokens) está incluído. Preferir adicionar arquivos explicitamente em vez de `git add .`.
+
+## Plano de desenvolvimento
+
+O trabalho segue [docs/development-plan.md](docs/development-plan.md), fase a fase.
+
+- Antes de começar, identifique a fase atual pela coluna **Status** e trabalhe só nas entregas dela.
+- Ao concluir uma fase, rode os itens de **Validação (gate)**, marque os que passaram e atualize o status (⬜ → 🟨 → ✅). Não avance de fase com gate pendente sem o usuário aprovar.
+- Se algo do plano precisar mudar, atualize o plano no mesmo commit da mudança e explique o motivo.
 
 ## Fluxo de trabalho e commits
 
