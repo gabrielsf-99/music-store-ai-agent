@@ -1,0 +1,6 @@
+product_id,price_brl,name,category_id,description,stock_quantity,status,specs,created_at
+1,499.9,Violão Aurora Nylon Natural,1,Violão clássico de estudo,10,active,"{""strings"":""nylon"",""color"":""Natural""}",2024-01-10
+2,1299,Violão Serra Folk Aço Sunburst,1,Violão folk com tampo sólido,0,active,"{""strings"":""aço"",""color"":""Sunburst""}",2024-02-10
+3,899,Violão Pampa Clássico,1,Modelo fora de linha,3,discontinued,{},2020-05-01
+4,350,Ukulele Brisa Concert,2,Ukulele concert,5,coming_soon,"{""size"":""concert""}",2025-01-01
+5,199.9,Ukulele Brisa Soprano,2,Ukulele soprano,8,active,"{""size"":""soprano""}",2023-03-15

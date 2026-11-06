@@ -1,0 +1,4 @@
+customer_id,name,phone,email,city
+1,Ana Exemplo,(67) 99999-0001,ana.exemplo@example.com,Campo Grande
+2,Bruno Exemplo,(67) 99999-0002,compartilhado@example.com,Dourados
+3,Carla Exemplo,(67) 3333-0003,Compartilhado@Example.com,Dourados
