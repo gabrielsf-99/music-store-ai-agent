@@ -4,6 +4,10 @@
 
 [development-plan.md](development-plan.md): fases incrementais, cada uma com entregas e critérios de validação.
 
+## Testes
+
+[testing.md](testing.md): como rodar os testes unitários, de integração e E2E.
+
 ## Architecture Decision Records (ADR)
 
 Decisões arquiteturais relevantes ficam em [`adr/`](adr/), numeradas sequencialmente com nome em inglês (`NNNN-short-title.md`).

@@ -47,7 +47,7 @@ tests/
 
 ## Testes
 
-Estratégia completa no ADR 0001, seção 2.6.
+Estratégia completa no ADR 0001, seção 2.6. Guia de execução em [docs/testing.md](docs/testing.md) — mantenha-o atualizado quando surgirem novos comandos ou camadas.
 
 | Comando | Camada | Requer |
 |---|---|---|
