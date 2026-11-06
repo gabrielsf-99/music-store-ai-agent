@@ -7,6 +7,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 - **Fatia vertical cedo.** O agente conversa com dados reais a partir da Fase 3. O maior risco do projeto (o LLM escolher a tool certa e responder bem) é validado antes de construir o resto.
 - **Cada fase tem um gate.** A próxima fase só começa quando os critérios de validação da anterior passam.
 - **Lógica antes de LLM.** Regras de preço, parcelamento e devolução são funções puras com teste unitário, prontas antes de o agente usá-las.
+- **Testes com fixtures.** Testes automatizados usam CSVs sintéticos em `tests/fixtures/` que reproduzem os casos relevantes (produto esgotado, descontinuado, promoção ativa etc.). Verificações com os dados reais são manuais pela CLI; os IDs citados nos gates referem-se a esses dados.
 - **CLI antes de UI.** Um loop de terminal valida o agente; o Chainlit entra quando o comportamento já está estável.
 - **Commits pequenos por escopo** ao final de cada entrega (ver [CLAUDE.md](../CLAUDE.md)).
 
@@ -34,7 +35,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 **Objetivo:** projeto roda do zero com um comando por etapa.
 
 **Entregas**
-- Mover `.temp/data/*` para `data/` com nomes em inglês (`products.csv`, `categories.csv`, `customers.csv`, `orders.csv`, `order_items.csv`, `promotions.csv`, `store_policies.pdf`).
+- Pasta `data/` com nomes em inglês (`products.csv`, `categories.csv`, `customers.csv`, `orders.csv`, `order_items.csv`, `promotions.csv`, `store_policies.pdf`) e `data/README.md` com o formato esperado.
 - `pyproject.toml` (uv, Python 3.12) com dependências base, ruff e configuração do pytest (marcadores `integration` e `e2e`, excluídos por padrão).
 - `src/emporio/config.py` com `pydantic-settings` lendo `.env`.
 - `docker-compose.yml` com `pgvector/pgvector:pg16`.
@@ -68,9 +69,8 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 **Validação (gate)**
 - [ ] Unit: funções de limpeza/validação (`tests/unit/test_ingest_cleaning.py`).
-- [ ] Integration: após ingestão, 64 produtos, 9 categorias, 49 clientes, 20 pedidos, 22 itens, 25 promoções.
-- [ ] Integration: rodar a ingestão duas vezes produz o mesmo estado.
-- [ ] Execução manual `uv run python -m emporio.ingest` mostra os warnings esperados.
+- [ ] Integration (com CSVs sintéticos em `tests/fixtures/`): contagens batem com a fixture; rodar a ingestão duas vezes produz o mesmo estado; arquivo faltando gera erro claro.
+- [ ] Manual (com os dados reais em `data/`): `uv run python -m emporio.ingest` carrega 64 produtos, 9 categorias, 49 clientes, 20 pedidos, 22 itens e 25 promoções, e mostra os warnings esperados.
 
 **Commits previstos:** `feat(db)`, `feat(ingest)`, `test(ingest)`
 
@@ -224,7 +224,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 **Validação (gate)**
 - [ ] App funcionando apontando para o banco hospedado.
-- [ ] **Teste de clone limpo:** clonar o repositório em outra pasta, seguir só o README e conseguir conversar com o agente.
+- [ ] **Teste de clone limpo:** clonar o repositório em outra pasta, copiar os dados para `data/`, seguir só o README e conseguir conversar com o agente.
 - [ ] `uv run pytest` e `uv run pytest -m integration` verdes; `-m e2e` executado e resultado registrado.
 - [ ] Nenhum segredo no histórico (`git log -p | Select-String "sk-or-"` vazio).
 

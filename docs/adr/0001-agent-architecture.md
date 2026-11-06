@@ -138,7 +138,7 @@ Documentadas aqui e replicadas no README.
 | 9 | Pedidos até mar/2026; data atual posterior | Agente usa a data real do sistema; pedidos entregues tendem a estar fora do prazo de arrependimento (7 dias) → oferecer garantia legal/fabricante. |
 | 10 | Promoções múltiplas para o mesmo produto (96, 93, 99), todas inativas | Considerar apenas `is_active = 1`; se houver mais de uma ativa, aplicar a de maior desconto (não cumulativas). |
 | 11 | Pagamentos em `orders` usam códigos (`credit_6x`, `pix`) | Normalizar para rótulos legíveis na ingestão. |
-| 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | Renomear em `data/` para `products.csv`, …, `store_policies.pdf`. |
+| 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | A pipeline espera os nomes `products.csv`, …, `store_policies.pdf` em `data/` (ver `data/README.md`). |
 
 ## 4. Consequências
 
@@ -150,8 +150,7 @@ Documentadas aqui e replicadas no README.
 - Raciocínio do agente visível na UI.
 
 **Negativas / riscos**
-- Testes de integração e E2E exigem Docker (mitigado: unitários rodam sem nada).
-- E2E consomem tokens e podem oscilar (mitigado: opt-in e asserções sobre comportamento, não texto).
+- Testes de integração e E2E exigem Docker (mitigado: unitários rodam sem nada).- E2E consomem tokens e podem oscilar (mitigado: opt-in e asserções sobre comportamento, não texto).
 - RAG sobre 8 páginas é discutivelmente excessivo (mitigado pela justificativa de escalabilidade e rastreabilidade).
 - Modelo de embeddings local adiciona download na primeira execução.
 - Guardrail extra adiciona uma chamada de LLM por mensagem (pode ser substituído por instrução no prompt se a latência for problema).

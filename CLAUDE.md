@@ -33,7 +33,7 @@ A arquitetura está definida em [docs/adr/0001-agent-architecture.md](docs/adr/0
 ## Estrutura alvo
 
 ```
-data/              CSVs e PDF de entrada (products.csv, ..., store_policies.pdf)
+data/              CSVs e PDF de entrada (formato em data/README.md)
 docs/              documentação e ADRs
 src/emporio/       código da aplicação (agent/, tools/, db/, prompts/, domain/, rag/)
 src/emporio/ingest/  pipeline de ingestão (uv run python -m emporio.ingest)
@@ -62,8 +62,7 @@ Estratégia completa no ADR 0001, seção 2.6.
 
 ## Segurança
 
-- **Nunca commitar credenciais.** `.env` fica no `.gitignore`; manter `.env.example` sem valores reais.
-- Antes de sugerir `git add`, conferir que nenhum arquivo com segredos (`.env`, chaves, tokens) está incluído. Preferir adicionar arquivos explicitamente em vez de `git add .`.
+- **Nunca commitar credenciais.** `.env` fica no `.gitignore`; manter `.env.example` sem valores reais.- Antes de sugerir `git add`, conferir que nenhum arquivo com segredos (`.env`, chaves, tokens) está incluído. Preferir adicionar arquivos explicitamente em vez de `git add .`.
 
 ## Plano de desenvolvimento
 
