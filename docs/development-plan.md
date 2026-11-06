@@ -17,7 +17,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 |---|---|---|---|
 | 0 | Fundação do projeto | `uv sync`, banco sobe, `pytest` verde | ✅ |
 | 1 | Schema e ingestão dos CSVs | contagens corretas, ingestão idempotente | ✅ |
-| 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ⬜ |
+| 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ✅ |
 | 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | ⬜ |
 | 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ⬜ |
 | 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ⬜ |
@@ -97,10 +97,16 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 - Sugestão de alternativas para produto esgotado/descontinuado (mesma categoria, faixa de preço próxima, disponível).
 
 **Validação (gate)**
-- [ ] Unit: casos derivados do manual (ex.: R$1.000 em 12x → não permitido, parcela < R$100; R$2.199 no PIX → R$2.089,05; produto com promoção ativa não recebe PIX).
-- [ ] Integration: "GD20" e "takamine gd 20" retornam o produto 95.
-- [ ] Integration: violões disponíveis até R$1.000 não incluem o produto 96 (estoque 0) nem o 113 (descontinuado).
-- [ ] Integration: `list_active_promotions` retorna exatamente os produtos 127, 121, 90 e 94.
+- [x] Unit: casos derivados do manual (R$1.000 → máximo 10x, 12x daria parcela < R$100; R$2.199 no PIX → R$2.089,05; produto com promoção ativa não recebe PIX; promoção reduz o parcelamento máximo; frete grátis só acima de R$500).
+- [x] Unit: categoria tolera acento e plural ("violão" → Violões, "piano" → Teclados e Pianos, "sopro" → as duas de sopro).
+- [x] Integration (fixtures): filtro por categoria/preço exclui esgotado e descontinuado; filtro usa o preço promocional; maior promoção ativa prevalece; alternativas para produto esgotado; categoria inexistente lista as válidas.
+- [x] Manual (dados reais): "GD20", "takamine gd 20" e "Takamine GD20" retornam o produto 95 (R$2.199, PIX R$2.089,05, 12x de R$183,25).
+- [x] Manual (dados reais): violões disponíveis até R$1.000 (12 itens) não incluem o 96 (estoque 0) nem o 113 (descontinuado).
+- [x] Manual (dados reais): `list_active_promotions` retorna exatamente 121, 90, 127 e 94.
+
+**Notas da execução**
+- Busca por nome usa `word_similarity` (pg_trgm), que funciona bem para termos parciais como "GD20". `get_product_details` devolve também `other_matches` (até 3 nomes próximos) para o agente pedir esclarecimento quando a busca for ambígua (ex.: "Takamine").
+- Alternativas são da mesma categoria, disponíveis e com preço mais próximo. Limitação: não consideram o tipo (ex.: para um violão de 7 cordas nylon, sugere violões de 6 cordas aço). Melhoria possível: priorizar `specs` semelhantes.
 
 **Commits previstos:** `feat(tools)` (pricing), `feat(tools)` (catalog), `test(tools)`
 

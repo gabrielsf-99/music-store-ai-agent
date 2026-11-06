@@ -23,3 +23,8 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** schema SQL, pipeline de ingestão (limpeza, checagens, carga transacional), fixtures sintéticas, testes unitários e de integração com testcontainers.
 - **Revisado/ajustado:** perfil dos dados reais revelou contagens erradas no ADR (65 produtos, 50 clientes) e e-mail compartilhado entre dois clientes — registrado como suposição nº 13.
+
+## Fase 2 — Regras de preço e catálogo
+
+- **Gerado:** regras de preço do manual como funções puras (promoção, PIX, parcelamento por faixa, frete), consultas de catálogo com busca fuzzy, testes unitários com casos do manual e testes de integração com fixtures.
+- **Revisado/ajustado:** um teste que não provava o que dizia (parcelamento com promoção) foi reescrito com um caso em que a promoção muda o resultado; limitação das alternativas sugeridas registrada no plano.
