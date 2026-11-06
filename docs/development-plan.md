@@ -16,7 +16,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | Fase | Entrega | Gate (resumo) | Status |
 |---|---|---|---|
 | 0 | Fundação do projeto | `uv sync`, banco sobe, `pytest` verde | ✅ |
-| 1 | Schema e ingestão dos CSVs | contagens corretas, ingestão idempotente | ⬜ |
+| 1 | Schema e ingestão dos CSVs | contagens corretas, ingestão idempotente | ✅ |
 | 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ⬜ |
 | 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | ⬜ |
 | 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ⬜ |
@@ -63,14 +63,21 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 **Entregas**
 - `src/emporio/db/schema.sql`: schema `emporio`, extensões `vector` e `pg_trgm`, tabelas com tipos corretos (`specs` como `jsonb`, `status` com `CHECK`, FKs), índice trigram em `products.name`.
-- `src/emporio/ingest/` com etapas separadas: leitura → validação/limpeza → carga (upsert ou truncate+load em transação).
-- Normalizações: rótulos legíveis de pagamento, `is_active` → boolean, datas.
-- Validações que emitem *warning* sem abortar: total do pedido ≠ soma dos itens (pedidos 3 e 20), produto `coming_soon` vendido, promoções duplicadas.
+- `src/emporio/ingest/` com etapas separadas: leitura → validação/limpeza → carga (truncate+load em transação).
+- Normalizações: pagamento separado em `payment_method` + `installments`, `is_active` → boolean, datas, e-mail em minúsculas, telefone só com dígitos (`phone_digits`, para a verificação da Fase 5).
+- Erros que abortam sem alterar o banco: valor inválido (com `arquivo:linha`), chave primária repetida, referência inexistente, pedido sem itens.
+- Validações que emitem *warning* sem abortar: total do pedido ≠ soma dos itens, produto não ativo em pedido, mais de uma promoção ativa por produto, e-mail compartilhado entre clientes.
 
 **Validação (gate)**
-- [ ] Unit: funções de limpeza/validação (`tests/unit/test_ingest_cleaning.py`).
-- [ ] Integration (com CSVs sintéticos em `tests/fixtures/`): contagens batem com a fixture; rodar a ingestão duas vezes produz o mesmo estado; arquivo faltando gera erro claro.
-- [ ] Manual (com os dados reais em `data/`): `uv run python -m emporio.ingest` carrega 64 produtos, 9 categorias, 49 clientes, 20 pedidos, 22 itens e 25 promoções, e mostra os warnings esperados.
+- [x] Unit: funções de limpeza/validação (`tests/unit/test_ingest_cleaning.py`, `tests/unit/test_ingest_checks.py`).
+- [x] Unit: arquivo faltando gera erro listando os arquivos ausentes.
+- [x] Integration (com CSVs sintéticos em `tests/fixtures/`): contagens batem com a fixture; rodar a ingestão duas vezes produz o mesmo estado; dado inválido não altera o banco; busca trigram funciona.
+- [x] Manual (com os dados reais em `data/`): `uv run python -m emporio.ingest` carrega 65 produtos, 9 categorias, 50 clientes, 20 pedidos, 22 itens e 25 promoções, e mostra os warnings esperados.
+
+**Notas da execução**
+- Warnings com os dados reais: pedidos 3 e 20 com total divergente; pedidos 3 e 14 com o produto 130 (`coming_soon`); clientes 11 e 43 com o mesmo e-mail.
+- Busca por "takamine gd20" retorna o produto 95 em primeiro (similaridade 0,41; o segundo tem 0,24).
+- A conexão define `search_path` para `<DB_SCHEMA>, public, extensions`; `extensions` é onde o Supabase instala as extensões.
 
 **Commits previstos:** `feat(db)`, `feat(ingest)`, `test(ingest)`
 
