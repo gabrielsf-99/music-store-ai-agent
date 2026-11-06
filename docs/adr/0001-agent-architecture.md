@@ -19,11 +19,11 @@ Restrição obrigatória: **Python como linguagem principal**.
 
 | Fonte | Volume | Natureza |
 |---|---|---|
-| `products.csv` | 64 linhas | Estruturado (preço, estoque, status, specs em JSON) |
+| `products.csv` | 65 linhas | Estruturado (preço, estoque, status, specs em JSON) |
 | `categories.csv` | 9 linhas | Estruturado |
 | `orders.csv` / `order_items.csv` | 20 / 22 linhas | Estruturado |
 | `promotions.csv` | 25 linhas (4 ativas) | Estruturado |
-| `customers.csv` | 49 linhas | Estruturado, **dados pessoais (LGPD)** |
+| `customers.csv` | 50 linhas | Estruturado, **dados pessoais (LGPD)** |
 | `store_policies.pdf` | 8 páginas (~3–4k tokens) | Texto não estruturado, organizado em seções numeradas |
 
 ## 2. Decisão
@@ -58,7 +58,7 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 | Padrão do agente | **ReAct com tools tipadas** | O LLM decide *qual* fonte consultar — é exatamente o requisito central do agente. | Roteador fixo por classificação (rígido para perguntas mistas, ex.: "o Takamine GD20 tem desconto no PIX?"). |
 | Acesso a dados estruturados | **Tools com SQL parametrizado** | Segurança (sem SQL livre sobre `customers`), previsibilidade, testabilidade. | Agente text-to-SQL: flexível, mas arrisca vazamento de dados pessoais e queries incorretas. |
 | Retrieval de políticas | **RAG com chunk por seção** (4.1, 4.2, 5.1…) | Seções do manual já são unidades semânticas; metadado `section` permite citar a fonte. Escala se o manual crescer. | Manual inteiro no system prompt: viável pelo tamanho (~4k tokens) e mais simples; descartado para manter retrieval rastreável e escalável — registrado como alternativa válida. Chunk de tamanho fixo: quebra regras no meio. |
-| Busca de produtos por nome | **`pg_trgm` (similaridade fuzzy)** | Clientes escrevem "GD20", "takamine gd 20". Catálogo de 64 itens não justifica embeddings. | Embeddings no catálogo (overkill); `ILIKE` (frágil). |
+| Busca de produtos por nome | **`pg_trgm` (similaridade fuzzy)** | Clientes escrevem "GD20", "takamine gd 20". Catálogo de 65 itens não justifica embeddings. | Embeddings no catálogo (overkill); `ILIKE` (frágil). |
 | Banco | **PostgreSQL 16 + pgvector + pg_trgm**, hospedagem agnóstica (ver 2.5) | Um único banco para relacional, vetores e histórico de conversa. | SQLite + Chroma/FAISS (setup zero, porém três mecanismos de persistência distintos). |
 | LLM | **OpenRouter** (via `langchain-openai` com `base_url`), modelo configurável por `LLM_MODEL` | Troca de modelo sem mudar código; permite comparar modelos nos evals. Requisito: tool calling confiável. | API direta de um provedor (acoplamento). |
 | Embeddings | **Modelo local multilíngue** (`fastembed` / sentence-transformers, ex.: `paraphrase-multilingual-MiniLM-L12-v2`) | Sem custo, sem segunda API key, determinístico, bom em pt-BR. Volume minúsculo (~20 chunks). | Embeddings via API (confirmar suporte no OpenRouter; adiciona dependência externa). |
@@ -137,8 +137,9 @@ Documentadas aqui e replicadas no README.
 | 8 | Não há data de recebimento real, só `estimated_delivery` | Usar `estimated_delivery` como proxy da data de recebimento para prazos de devolução. |
 | 9 | Pedidos até mar/2026; data atual posterior | Agente usa a data real do sistema; pedidos entregues tendem a estar fora do prazo de arrependimento (7 dias) → oferecer garantia legal/fabricante. |
 | 10 | Promoções múltiplas para o mesmo produto (96, 93, 99), todas inativas | Considerar apenas `is_active = 1`; se houver mais de uma ativa, aplicar a de maior desconto (não cumulativas). |
-| 11 | Pagamentos em `orders` usam códigos (`credit_6x`, `pix`) | Normalizar para rótulos legíveis na ingestão. |
+| 11 | Pagamentos em `orders` usam códigos (`credit_6x`, `pix`) | Separar na ingestão em `payment_method` (`pix`, `debit`, `boleto`, `credit_card`) e `installments`; o rótulo legível é gerado no código. |
 | 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | A pipeline espera os nomes `products.csv`, …, `store_policies.pdf` em `data/` (ver `data/README.md`). |
+| 13 | Clientes 11 e 43 compartilham o e-mail `bruno.martins@jmail.com` | E-mail não é único. A verificação de identidade compara o contato com o cliente **do pedido**, nunca busca o cliente pelo e-mail; a ingestão emite *warning*. |
 
 ## 4. Consequências
 
