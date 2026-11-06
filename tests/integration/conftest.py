@@ -3,6 +3,7 @@ from psycopg import sql
 from testcontainers.community.postgres import PostgresContainer
 
 from emporio.db.connection import connect
+from emporio.ingest.pipeline import run
 
 POSTGRES_IMAGE = "pgvector/pgvector:pg16"
 TEST_SCHEMA = "emporio"
@@ -22,3 +23,10 @@ def conn(database_url):
         drop = sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(TEST_SCHEMA))
         conn.execute(drop)
         conn.commit()
+
+
+@pytest.fixture
+def loaded_conn(conn, fixture_data_dir):
+    """Connection with the synthetic fixture dataset already ingested."""
+    run(fixture_data_dir, conn, TEST_SCHEMA)
+    return conn
