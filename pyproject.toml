@@ -5,15 +5,18 @@ description = "Agente de atendimento da Empório da Música"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "fastembed>=0.9.1",
     "langchain-openai>=1.7.4",
     "langgraph>=1.2.20",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
+    "pypdf>=7.0.0",
 ]
 
 [dependency-groups]
 dev = [
+    "fpdf2>=2.9.0",
     "pytest>=8.3",
     "ruff>=0.8",
     "testcontainers>=4.15.0",
