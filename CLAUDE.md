@@ -64,6 +64,10 @@ Estratégia completa no ADR 0001, seção 2.6. Guia de execução em [docs/testi
 
 - **Nunca commitar credenciais.** `.env` fica no `.gitignore`; manter `.env.example` sem valores reais.- Antes de sugerir `git add`, conferir que nenhum arquivo com segredos (`.env`, chaves, tokens) está incluído. Preferir adicionar arquivos explicitamente em vez de `git add .`.
 
+## Documentação de uso
+
+[README.md](README.md) (instalação e uso) e [docs/contributing.md](docs/contributing.md) (desenvolvimento) devem refletir o estado atual: ao mudar comandos, variáveis de ambiente, estrutura de pastas ou adicionar uma interface (ex.: Chainlit na Fase 7), atualize-os na mesma etapa.
+
 ## Plano de desenvolvimento
 
 O trabalho segue [docs/development-plan.md](docs/development-plan.md), fase a fase.

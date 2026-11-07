@@ -1,5 +1,10 @@
 # Documentação
 
+## Uso e contribuição
+
+- [README do projeto](../README.md): instalação, configuração e uso pelo terminal.
+- [contributing.md](contributing.md): fluxo de desenvolvimento, padrões e como estender o agente.
+
 ## Plano de desenvolvimento
 
 [development-plan.md](development-plan.md): fases incrementais, cada uma com entregas e critérios de validação.
