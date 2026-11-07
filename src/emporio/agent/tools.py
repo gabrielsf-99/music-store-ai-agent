@@ -9,6 +9,8 @@ from emporio.domain.pricing import PIX_DISCOUNT_PERCENT, format_brl
 from emporio.tools import catalog
 from emporio.tools.catalog import ProductDetails, ProductOffer, UnknownCategoryError
 
+MAX_PRODUCTS_PER_RESULT = 10
+
 
 def availability(offer: ProductOffer) -> str:
     if offer.status == "discontinued":
@@ -62,6 +64,22 @@ def details_to_dict(details: ProductDetails) -> dict:
     }
 
 
+def offers_result(offers: list[ProductOffer]) -> dict:
+    """Cap the list sent to the LLM, telling it how many were left out."""
+    shown = offers[:MAX_PRODUCTS_PER_RESULT]
+    result = {
+        "total_found": len(offers),
+        "shown": len(shown),
+        "products": [offer_to_dict(o) for o in shown],
+    }
+    if len(offers) > len(shown):
+        result["note"] = (
+            f"Há mais {len(offers) - len(shown)} produtos além dos listados; avise o cliente "
+            "e ofereça refinar a busca (faixa de preço, tipo, marca)."
+        )
+    return result
+
+
 def _to_decimal(value: float | None) -> Decimal | None:
     return None if value is None else Decimal(str(value))
 
@@ -99,7 +117,7 @@ def build_catalog_tools(pool: ConnectionPool) -> list[BaseTool]:
                 )
         except UnknownCategoryError as exc:
             return {"error": str(exc)}
-        return {"count": len(offers), "products": [offer_to_dict(o) for o in offers]}
+        return offers_result(offers)
 
     @tool(parse_docstring=True)
     def get_product_details(product: str) -> dict:
@@ -129,6 +147,6 @@ def build_catalog_tools(pool: ConnectionPool) -> list[BaseTool]:
                 offers = catalog.list_active_promotions(conn, category=category)
         except UnknownCategoryError as exc:
             return {"error": str(exc)}
-        return {"count": len(offers), "products": [offer_to_dict(o) for o in offers]}
+        return offers_result(offers)
 
     return [search_products, get_product_details, list_active_promotions]

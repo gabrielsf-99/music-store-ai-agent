@@ -142,7 +142,7 @@ def search_products(
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
     only_available: bool = True,
-    limit: int = 10,
+    limit: int | None = None,
 ) -> list[ProductOffer]:
     """Search by name/brand, category and price range (on the final, promotional price)."""
     category_ids = _resolve_categories(conn, category) if category else None

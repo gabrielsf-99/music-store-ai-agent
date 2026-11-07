@@ -2,7 +2,12 @@ from decimal import Decimal
 
 import pytest
 
-from emporio.agent.tools import availability, offer_to_dict
+from emporio.agent.tools import (
+    MAX_PRODUCTS_PER_RESULT,
+    availability,
+    offer_to_dict,
+    offers_result,
+)
 from emporio.domain.pricing import price_product
 from emporio.tools.catalog import ProductOffer
 
@@ -56,3 +61,21 @@ def test_offer_with_promotion_shows_original_price_and_no_pix_discount():
 
 def test_offer_below_minimum_installment_is_cash_only():
     assert offer_to_dict(make_offer(price="99.9"))["installments"] == "somente à vista"
+
+
+def test_offers_result_reports_products_left_out():
+    offers = [make_offer() for _ in range(MAX_PRODUCTS_PER_RESULT + 2)]
+
+    result = offers_result(offers)
+
+    assert result["total_found"] == MAX_PRODUCTS_PER_RESULT + 2
+    assert result["shown"] == MAX_PRODUCTS_PER_RESULT
+    assert len(result["products"]) == MAX_PRODUCTS_PER_RESULT
+    assert "Há mais 2 produtos" in result["note"]
+
+
+def test_offers_result_without_truncation_has_no_note():
+    result = offers_result([make_offer()])
+
+    assert result["total_found"] == result["shown"] == 1
+    assert "note" not in result
