@@ -28,3 +28,8 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** regras de preço do manual como funções puras (promoção, PIX, parcelamento por faixa, frete), consultas de catálogo com busca fuzzy, testes unitários com casos do manual e testes de integração com fixtures.
 - **Revisado/ajustado:** um teste que não provava o que dizia (parcelamento com promoção) foi reescrito com um caso em que a promoção muda o resultado; limitação das alternativas sugeridas registrada no plano.
+
+## Fase 3 — Agente mínimo
+
+- **Gerado:** prompt de sistema (persona, dados da loja, horário com aberto/fechado), tools LangChain com valores já formatados, grafo LangGraph, CLI com modo roteirizado, testes E2E.
+- **Revisado/ajustado:** diagnóstico do erro 401 do OpenRouter isolando LangChain com chamada direta (problema era da conta); a validação manual pela CLI revelou que a busca cortava resultados sem avisar o agente — corrigido com `total_found`/`shown`.

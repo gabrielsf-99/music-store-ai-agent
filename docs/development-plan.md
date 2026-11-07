@@ -18,7 +18,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 0 | Fundação do projeto | `uv sync`, banco sobe, `pytest` verde | ✅ |
 | 1 | Schema e ingestão dos CSVs | contagens corretas, ingestão idempotente | ✅ |
 | 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ✅ |
-| 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | 🟨 |
+| 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | ✅ |
 | 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ⬜ |
 | 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ⬜ |
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ⬜ |
@@ -127,16 +127,18 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 **Validação (gate)**
 - [x] Unit: horário de funcionamento, montagem do prompt, formato das tools (valores em R$, PIX, parcelamento, disponibilidade).
-- [ ] Manual (CLI): "Quanto custa o Takamine GD20?" → chama `get_product_details`, responde R$2.199 e o valor no PIX.
-- [ ] Manual (CLI): "Quais violões até R$1000?" → lista apenas disponíveis, com preços corretos.
-- [ ] Manual (CLI): tom informal e profissional, em pt-BR.
-- [ ] E2E: primeiros 2 cenários automatizados (`tests/e2e/test_catalog_flows.py`).
-- [ ] Decisão registrada: modelo inicial que faz tool calling de forma confiável.
+- [x] Manual (CLI): "Quanto custa o Takamine GD20?" → chama `get_product_details`, responde R$2.199, PIX R$2.089,05 e 12x de R$183,25.
+- [x] Manual (CLI): "Quais violões até R$1000?" → chama `search_products` com categoria e preço máximo; lista só disponíveis, com preços corretos, e avisa quando há mais resultados.
+- [x] Manual (CLI): tom informal e profissional, em pt-BR; multi-turno funciona (produto esgotado → alternativa; promoções com preço original e %; acessório recusado com gentileza).
+- [x] E2E: primeiros 2 cenários automatizados (`tests/e2e/test_catalog_flows.py`).
+- [x] Decisão registrada: modelo inicial `openai/gpt-6-luna-pro` (ver notas).
 
 **Notas da execução**
 - Modelo inicial: `openai/gpt-6-luna-pro` (suporta tools; US$ 0,10/M tokens de entrada e US$ 0,50/M de saída). Não aceita `temperature`, por isso o cliente não envia esse parâmetro.
 - Grafo montado com `StateGraph` em vez do `create_react_agent` pronto, para encaixar o guardrail da Fase 6.
-- **Bloqueio:** o OpenRouter responde `401 - User not found` no chat, inclusive em chamada direta sem LangChain, embora a chave passe em `/api/v1/key`. Problema de conta/chave, não do código.
+- O OpenRouter respondeu `401 - User not found` no chat (inclusive em chamada direta), embora a chave passasse em `/api/v1/key`; resolvido do lado da conta.
+- Bug encontrado na validação manual: a busca cortava em 10 resultados sem avisar, e o agente apresentava 10 de 12 violões como lista completa. Correção: a tool informa `total_found`/`shown` e uma nota pedindo para avisar o cliente.
+- Latência observada: ~11 s por pergunta com uma chamada de tool (inclui a inicialização da CLI).
 
 **Commits previstos:** `feat(agent)`, `feat(agent)` (prompt), `feat(ui)` (cli), `test(agent)`
 
