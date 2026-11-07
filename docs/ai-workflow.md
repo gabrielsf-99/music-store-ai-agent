@@ -33,3 +33,8 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** prompt de sistema (persona, dados da loja, horário com aberto/fechado), tools LangChain com valores já formatados, grafo LangGraph, CLI com modo roteirizado, testes E2E.
 - **Revisado/ajustado:** diagnóstico do erro 401 do OpenRouter isolando LangChain com chamada direta (problema era da conta); a validação manual pela CLI revelou que a busca cortava resultados sem avisar o agente — corrigido com `total_found`/`shown`.
+
+## Fase 4 — RAG do manual de políticas
+
+- **Gerado:** extração do PDF (modo layout do pypdf), chunking por seção numerada com validação de sequência, embeddings locais com fastembed, retriever, tool `search_policies`, PDF sintético para testes.
+- **Revisado/ajustado:** a estratégia de retrieval foi decidida por medição, não por suposição — 14 perguntas reais comparando busca vetorial (11/14 no top-3), full-text, híbrida e híbrida com seção completa (13/14). A extração padrão do pypdf quebrava cada palavra em uma linha; trocada pelo modo layout após inspeção.

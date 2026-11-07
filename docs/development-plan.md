@@ -19,7 +19,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 1 | Schema e ingestão dos CSVs | contagens corretas, ingestão idempotente | ✅ |
 | 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ✅ |
 | 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | ✅ |
-| 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ⬜ |
+| 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ✅ |
 | 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ⬜ |
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ⬜ |
 | 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | ⬜ |
@@ -146,18 +146,27 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 ## Fase 4 — RAG do manual de políticas
 
-**Objetivo:** o agente responde perguntas de política com base no manual e cita a seção.
+**Objetivo:** o agente responde perguntas de política com base no manual.
 
 **Entregas**
-- `src/emporio/ingest/policies.py`: extração do PDF, chunking por seção numerada (título + conteúdo + metadado `section`), embeddings locais, carga em tabela com `vector`.
-- `src/emporio/rag/retriever.py` e a tool `search_policies`.
-- Tool registrada no agente; prompt orienta a citar a seção.
+- `src/emporio/ingest/policies.py`: extração do PDF (pypdf, modo layout), chunking por seção numerada com validação de sequência (título + conteúdo + metadados `section`/`top_section`), limpeza de cabeçalho/rodapé e tabelas.
+- `src/emporio/rag/embeddings.py`: embeddings locais (fastembed, `paraphrase-multilingual-MiniLM-L12-v2`, cache em `.cache/fastembed`).
+- Tabela `policy_chunks` com `vector(384)` e `tsvector` (português) gerado; carga na mesma transação dos CSVs.
+- `src/emporio/rag/retriever.py`: busca híbrida (vetorial + full-text, fusão RRF) que devolve as 2 seções de topo completas; tool `search_policies`.
+- Prompt: quando e como usar as políticas; menciona a política pelo nome, sem número de seção; dados fixos da loja prevalecem sobre divergências do manual.
 
 **Validação (gate)**
-- [ ] Unit: chunker gera as seções esperadas (1, 1.1, 1.2, 2, 3, 3.1, 4.1…) sem cortar regras no meio.
-- [ ] Integration: perguntas conhecidas recuperam a seção certa no top-3 (ex.: "posso parcelar em 12x?" → 3.1; "qual o endereço?" → 1.2; "me arrependi da compra" → 4.1).
-- [ ] Manual (CLI): pergunta mista "o Takamine GD20 tem desconto no PIX?" usa catálogo **e** política.
-- [ ] E2E: cenários de política (endereço, horário, devolução).
+- [x] Unit: chunker gera as seções esperadas sem cortar regras; listas numeradas não viram seção; cabeçalho/rodapé removidos; seção continua após quebra de página; PDF sintético extraído corretamente.
+- [x] Unit: montagem das seções de topo a partir do ranking.
+- [x] Integration (manual sintético): perguntas recuperam a seção certa em primeiro; seção devolvida completa.
+- [x] Manual (dados reais): 13/14 perguntas recuperam a seção certa entre as 2 devolvidas ("12x" → 3, "me arrependi" → 4, "garantia" → 8…). Falha: "qual o endereço?" (a 1.2 não vem), coberto pelo endereço fixo no prompt.
+- [x] Manual (CLI): devolução, defeito, garantia e entrega em outra cidade respondidos com base na política, com o WhatsApp correto. A pergunta mista "o Takamine GD20 tem desconto no PIX?" é resolvida só pelo catálogo, que já aplica a regra do PIX.
+- [x] E2E: devolução por arrependimento (7 dias) e produto com defeito (30 dias). Endereço e horário não usam RAG (estão no prompt) e ficam para os evals.
+
+**Notas da execução**
+- Estratégia escolhida por medição com 14 perguntas reais: vetorial puro 11/14 no top-3 (6/14 em 1º); full-text 12/14; híbrido 12/14 (9/14 em 1º); híbrido devolvendo seções de topo completas 13/14, com ~2.300 caracteres de contexto em média.
+- Peso maior para o título no full-text foi testado e não mudou o resultado.
+- O schema de `policy_chunks` mudou durante a fase; em bancos criados antes, rodar `DROP TABLE emporio.policy_chunks` uma vez antes da ingestão.
 
 **Commits previstos:** `feat(rag)`, `feat(ingest)` (policies), `feat(agent)` (tool), `test(rag)`
 

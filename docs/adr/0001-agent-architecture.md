@@ -57,11 +57,11 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 | Orquestração | **LangGraph** | Grafo explícito permite um nó de guardrail antes do agente, checkpointer nativo para histórico e fácil inspeção de passos. | LangChain AgentExecutor (menos controle); loop manual de tool calling (mais código de infraestrutura). |
 | Padrão do agente | **ReAct com tools tipadas** | O LLM decide *qual* fonte consultar — é exatamente o requisito central do agente. | Roteador fixo por classificação (rígido para perguntas mistas, ex.: "o Takamine GD20 tem desconto no PIX?"). |
 | Acesso a dados estruturados | **Tools com SQL parametrizado** | Segurança (sem SQL livre sobre `customers`), previsibilidade, testabilidade. | Agente text-to-SQL: flexível, mas arrisca vazamento de dados pessoais e queries incorretas. |
-| Retrieval de políticas | **RAG com chunk por seção** (4.1, 4.2, 5.1…) | Seções do manual já são unidades semânticas; metadado `section` permite citar a fonte. Escala se o manual crescer. | Manual inteiro no system prompt: viável pelo tamanho (~4k tokens) e mais simples; descartado para manter retrieval rastreável e escalável — registrado como alternativa válida. Chunk de tamanho fixo: quebra regras no meio. |
+| Retrieval de políticas | **RAG híbrido com chunk por subseção** (4.1, 4.2, 5.1…): busca vetorial + full-text do Postgres (dicionário `portuguese`) fundidas por RRF; o agente recebe as **2 seções de topo completas** (ex.: toda a seção 8 para "qual a garantia?") | Seções do manual já são unidades semânticas; metadado `section` permite rastrear a fonte. Medido com 14 perguntas reais: só vetorial acertou 11 no top-3; híbrido + seção completa acertou a seção certa em 13 (a falha, "endereço", é coberta pelo prompt). Escala se o manual crescer. | Manual inteiro no system prompt: viável pelo tamanho (~4k tokens) e mais simples; descartado para manter retrieval rastreável e escalável — registrado como alternativa válida. Chunk de tamanho fixo: quebra regras no meio. |
 | Busca de produtos por nome | **`pg_trgm` (similaridade fuzzy)** | Clientes escrevem "GD20", "takamine gd 20". Catálogo de 65 itens não justifica embeddings. | Embeddings no catálogo (overkill); `ILIKE` (frágil). |
 | Banco | **PostgreSQL 16 + pgvector + pg_trgm**, hospedagem agnóstica (ver 2.5) | Um único banco para relacional, vetores e histórico de conversa. | SQLite + Chroma/FAISS (setup zero, porém três mecanismos de persistência distintos). |
 | LLM | **OpenRouter** (via `langchain-openai` com `base_url`), modelo configurável por `LLM_MODEL` | Troca de modelo sem mudar código; permite comparar modelos nos evals. Requisito: tool calling confiável. | API direta de um provedor (acoplamento). |
-| Embeddings | **Modelo local multilíngue** (`fastembed` / sentence-transformers, ex.: `paraphrase-multilingual-MiniLM-L12-v2`) | Sem custo, sem segunda API key, determinístico, bom em pt-BR. Volume minúsculo (~20 chunks). | Embeddings via API (confirmar suporte no OpenRouter; adiciona dependência externa). |
+| Embeddings | **Modelo local multilíngue** via `fastembed` (ONNX): `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensões, 0,22 GB | Sem custo, sem segunda API key, determinístico, bom em pt-BR, sem PyTorch. Volume minúsculo (25 chunks). Modelos maiores (mpnet 1 GB, e5-large 2,2 GB) ficam como evolução. | Embeddings via API (confirmar suporte no OpenRouter; adiciona dependência externa). |
 | Interface | **Chainlit** | Python puro (respeita a restrição), UI de chat pronta, exibe chamadas de tools/etapas — torna o raciocínio do agente visível para a equipe. | React + FastAPI (adiciona base JS e tempo sem ganho funcional para o protótipo); Streamlit (menos adequado a chat com steps); CLI (menos demonstrável). |
 | Histórico | **LangGraph `PostgresSaver`**, `thread_id` por sessão | Contexto multi-turno (ex.: cliente informa nº do pedido e depois pergunta sobre devolução). | Memória em processo (perde ao reiniciar). |
 | Cálculos de preço | **Determinísticos no código** (promoção, PIX 5%, parcelamento, frete) | O manual proíbe informar preços sem consultar o sistema; LLM erra aritmética. | Deixar o LLM calcular (não confiável). |
@@ -78,7 +78,7 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 | `get_product_details` | `name_or_id` | Busca fuzzy; retorna specs, preço, promoção, opções de pagamento calculadas. Sugere alternativas se esgotado/descontinuado. |
 | `get_order_status` | `order_id`, `email_or_phone` | **Exige verificação de identidade** (LGPD). Nunca expõe dados de outro cliente. |
 | `list_active_promotions` | `category?` | Somente `is_active = 1`; sempre mostra preço original + % (seção 6.2 do manual). |
-| `search_policies` | `question` | Top-k chunks do manual com metadado de seção. |
+| `search_policies` | `question` | As 2 seções do manual mais relevantes, completas (título + subseções). |
 
 As descrições das tools (lidas pelo LLM) podem ser em português para melhorar o roteamento em conversas pt-BR.
 
@@ -86,7 +86,8 @@ As descrições das tools (lidas pelo LLM) podem ser em português para melhorar
 
 - **System prompt** com: persona e tom (seção 7.1 do manual), escopo (só instrumentos; redirecionar acessórios), **data e hora atuais** (horário de funcionamento e prazos de troca dependem disso), dados fixos da loja (nome, endereço, horários), regras de não inventar preço/estoque/prazo.
 - **Scope guardrail** antes do agente: classifica mensagens claramente fora do domínio e responde com redirecionamento cordial sem acionar tools.
-- Respostas citam a seção do manual quando aplicam uma política.
+- Ao aplicar uma política, a resposta menciona a política pelo nome ("nossa política de trocas"), sem citar números de seção: o manual é um documento interno. A seção usada fica rastreável nos passos da tool (CLI/UI).
+- Se o manual trouxer contato divergente dos dados fixos da loja (suposição 1), o prompt manda usar os dados fixos.
 
 ### 2.5 Hospedagem do banco
 
