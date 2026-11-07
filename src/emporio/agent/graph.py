@@ -11,10 +11,11 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from psycopg_pool import ConnectionPool
 
-from emporio.agent.tools import build_catalog_tools
+from emporio.agent.tools import build_catalog_tools, build_policy_tools
 from emporio.config import Settings, get_settings
 from emporio.llm import build_chat_model
 from emporio.prompts.system import build_system_prompt
+from emporio.rag.embeddings import embed_texts, warm_up
 
 
 def build_graph(
@@ -48,10 +49,11 @@ def build_agent(
     timezone = ZoneInfo(settings.timezone)
     with pool.connection() as conn:
         categories = [row[0] for row in conn.execute("SELECT name FROM categories ORDER BY name")]
+    warm_up()
 
     return build_graph(
         llm=build_chat_model(settings),
-        tools=build_catalog_tools(pool),
+        tools=[*build_catalog_tools(pool), *build_policy_tools(pool, embed_texts)],
         system_prompt=lambda: build_system_prompt(datetime.now(timezone), categories),
         checkpointer=checkpointer,
     )

@@ -6,6 +6,8 @@ from langchain_core.tools import BaseTool, tool
 from psycopg_pool import ConnectionPool
 
 from emporio.domain.pricing import PIX_DISCOUNT_PERCENT, format_brl
+from emporio.rag import retriever
+from emporio.rag.embeddings import Embedder
 from emporio.tools import catalog
 from emporio.tools.catalog import ProductDetails, ProductOffer, UnknownCategoryError
 
@@ -150,3 +152,25 @@ def build_catalog_tools(pool: ConnectionPool) -> list[BaseTool]:
         return offers_result(offers)
 
     return [search_products, get_product_details, list_active_promotions]
+
+
+def build_policy_tools(pool: ConnectionPool, embed: Embedder) -> list[BaseTool]:
+    @tool(parse_docstring=True)
+    def search_policies(question: str) -> dict:
+        """Consulta as políticas da loja e retorna as seções mais relevantes.
+
+        Use para trocas e devoluções, garantia, frete e entrega, formas de pagamento e
+        parcelamento, regras de promoção, horário de funcionamento e privacidade de dados.
+
+        Args:
+            question: A dúvida do cliente, em linguagem natural.
+        """
+        with pool.connection() as conn:
+            sections = retriever.search_policies(conn, embed, question)
+        return {
+            "sections": [
+                {"section": s.section, "title": s.title, "content": s.content} for s in sections
+            ]
+        }
+
+    return [search_policies]
