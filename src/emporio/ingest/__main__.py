@@ -18,6 +18,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)-7s %(message)s")
+    for noisy in ("httpx", "huggingface_hub"):
+        logging.getLogger(noisy).setLevel(logging.ERROR)
 
     try:
         check_input_files(args.data_dir)
@@ -31,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
     for warning in report.warnings:
         log.warning("%s", warning)
     for table, count in report.counts.items():
-        log.info("%-12s %d rows", table, count)
+        log.info("%-14s %d rows", table, count)
     log.info("loaded into schema '%s'", schema)
     return 0
 

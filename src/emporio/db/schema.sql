@@ -61,6 +61,20 @@ CREATE TABLE IF NOT EXISTS orders (
 
 CREATE INDEX IF NOT EXISTS orders_customer_idx ON orders (customer_id);
 
+-- One row per numbered (sub)section of the policy manual, searched by vector and full text.
+-- Dimension = rag.embeddings.EMBEDDING_DIM. No indexes: ~25 rows, an exact scan is fastest.
+CREATE TABLE IF NOT EXISTS policy_chunks (
+    section      text PRIMARY KEY,
+    top_section  text NOT NULL,
+    title        text NOT NULL,
+    parent_title text,
+    content      text NOT NULL,
+    embedding    vector(384) NOT NULL,
+    search_doc   tsvector GENERATED ALWAYS AS (
+        to_tsvector('portuguese', coalesce(parent_title, '') || ' ' || title || ' ' || content)
+    ) STORED
+);
+
 CREATE TABLE IF NOT EXISTS order_items (
     order_id   integer NOT NULL REFERENCES orders,
     product_id integer NOT NULL REFERENCES products,

@@ -33,11 +33,11 @@ def _insert(conn: psycopg.Connection, table: str, records: list[dict]) -> None:
         cur.executemany(query, rows)
 
 
-def load(conn: psycopg.Connection, data: Dataset, schema: str) -> None:
+def load(conn: psycopg.Connection, data: Dataset, policy_chunks: list[dict], schema: str) -> None:
+    tables = (*LOAD_ORDER, "policy_chunks")
     with conn.transaction():
         apply_schema(conn, schema)
-        conn.execute(
-            sql.SQL("TRUNCATE {}").format(sql.SQL(", ").join(map(sql.Identifier, LOAD_ORDER)))
-        )
+        conn.execute(sql.SQL("TRUNCATE {}").format(sql.SQL(", ").join(map(sql.Identifier, tables))))
         for table in LOAD_ORDER:
             _insert(conn, table, getattr(data, table))
+        _insert(conn, "policy_chunks", policy_chunks)

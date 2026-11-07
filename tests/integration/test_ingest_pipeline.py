@@ -18,19 +18,18 @@ EXPECTED_COUNTS = {
     "customers": 3,
     "orders": 5,
     "order_items": 6,
+    "policy_chunks": 7,
 }
+TABLES = (*LOAD_ORDER, "policy_chunks")
 
 
 def _table_counts(conn):
-    return {
-        table: conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in LOAD_ORDER
-    }
+    return {table: conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0] for table in TABLES}
 
 
 def _snapshot(conn):
     return {
-        table: conn.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall()
-        for table in LOAD_ORDER
+        table: conn.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall() for table in TABLES
     }
 
 
