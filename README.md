@@ -5,15 +5,17 @@ Assistente virtual da **Empório da Música**, loja de instrumentos musicais em 
 - **Catálogo:** produtos, preços, disponibilidade, PIX, parcelamento e promoções, consultando o banco de dados.
 - **Políticas da loja:** trocas, devoluções, garantia, frete, pagamento, consultando o manual de políticas (RAG).
 - **Informações gerais:** endereço, contatos e horário de funcionamento, incluindo se a loja está aberta agora.
+- **Pedidos:** status, itens, rastreio e prazos de devolução/troca/garantia, após confirmar o e-mail ou telefone do cliente.
 
-Consulta de pedidos e a interface web estão em desenvolvimento ([plano](docs/development-plan.md)).
+As conversas ficam salvas no Postgres e podem ser retomadas. A interface web está em desenvolvimento ([plano](docs/development-plan.md)).
 
 ## Como funciona
 
 ```
-Cliente ──► Agente (LangGraph + LLM via OpenRouter)
+Cliente ──► Agente (LangGraph + LLM via OpenRouter) ──► histórico da conversa no Postgres
                ├── tools de catálogo ──► Postgres (SQL parametrizado, busca fuzzy)
-               └── tool de políticas  ──► Postgres + pgvector (busca híbrida no manual)
+               ├── tool de políticas  ──► Postgres + pgvector (busca híbrida no manual)
+               └── tool de pedidos    ──► Postgres (só com e-mail ou telefone do cliente)
 ```
 
 Preços, PIX e parcelas são calculados no código, não pelo LLM. Decisões e justificativas: [ADR 0001](docs/adr/0001-agent-architecture.md).
@@ -79,9 +81,12 @@ uv run python -m emporio.cli
 uv run python -m emporio.cli
 ```
 
-Digite as mensagens e `sair` para encerrar. A conversa mantém o contexto enquanto a sessão estiver aberta. Cada ferramenta consultada aparece antes da resposta:
+Digite as mensagens e `sair` para encerrar. Cada ferramenta consultada aparece antes da resposta:
 
 ```
+Conversa: cli-3f2a...  (para continuar depois: --thread cli-3f2a...)
+Empório da Música — digite 'sair' para encerrar.
+
 Você: Quanto custa o Takamine GD20?
   [tool] get_product_details({"product": "Takamine GD20"})
 
@@ -96,6 +101,14 @@ Envia mensagens em sequência, na mesma conversa, sem interação. Útil para te
 uv run python -m emporio.cli -m "Quais violões vocês têm até R$ 1000?" -m "E o Giannini GF-3D, tem?"
 ```
 
+### Retomar uma conversa
+
+Toda conversa fica salva no Postgres com um id, mostrado no início da sessão. Para continuar de onde parou, mesmo depois de fechar o terminal:
+
+```powershell
+uv run python -m emporio.cli --thread cli-3f2a...
+```
+
 ### Perguntas para experimentar
 
 | Tipo | Exemplo |
@@ -106,7 +119,11 @@ uv run python -m emporio.cli -m "Quais violões vocês têm até R$ 1000?" -m "E
 | Promoções | "Tem alguma promoção rolando?" |
 | Política | "Me arrependi da compra, posso devolver?" |
 | Garantia | "Qual a garantia dos instrumentos?" |
+| Pedido | "Quero saber do meu pedido 1" → o agente pede o e-mail ou telefone da compra |
+| Devolução de um pedido | Depois de consultar o pedido: "Posso devolver?" |
 | Fora do escopo | "Vocês vendem encordoamento?" |
+
+Os dados de clientes e pedidos para testar estão em `data/customers.csv` e `data/orders.csv`.
 
 ## Interface web
 
@@ -131,6 +148,7 @@ Em desenvolvimento (Fase 7 do [plano](docs/development-plan.md)): chat no navega
 | `missing input files in data` | Faltam arquivos em `data/`; a mensagem lista quais. |
 | `401` ao conversar | Chave do OpenRouter inválida ou conta sem acesso. Gere uma nova chave no painel. |
 | Erro de coluna em `policy_chunks` na ingestão | Banco criado com um schema anterior. Rode `docker compose down -v` e repita o passo 4. |
+| Agente responde "não foi possível consultar agora" | Uma tool falhou; o erro completo aparece no terminal. Causa comum: banco sem dados (`relation ... does not exist`) — rode a ingestão. |
 
 ## Estrutura do projeto
 
@@ -138,13 +156,13 @@ Em desenvolvimento (Fase 7 do [plano](docs/development-plan.md)): chat no navega
 data/                 dados de entrada (formato em data/README.md)
 docs/                 ADRs, plano, guias de testes e de contribuição
 src/emporio/
-  agent/              grafo LangGraph e tools expostas ao LLM
+  agent/              grafo LangGraph, tools expostas ao LLM e memória
   db/                 conexão, pool e schema SQL
-  domain/             regras de negócio (preços, horário da loja)
+  domain/             regras de negócio (preços, prazos de devolução, horário da loja)
   ingest/             pipeline de ingestão (CSVs e PDF)
   prompts/            prompt de sistema
   rag/                embeddings e busca no manual de políticas
-  tools/              consultas ao catálogo
+  tools/              consultas ao catálogo e a pedidos
   cli.py              chat no terminal
 tests/                unit, integration e e2e
 ```

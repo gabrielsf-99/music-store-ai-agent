@@ -38,3 +38,8 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** extração do PDF (modo layout do pypdf), chunking por seção numerada com validação de sequência, embeddings locais com fastembed, retriever, tool `search_policies`, PDF sintético para testes.
 - **Revisado/ajustado:** a estratégia de retrieval foi decidida por medição, não por suposição — 14 perguntas reais comparando busca vetorial (11/14 no top-3), full-text, híbrida e híbrida com seção completa (13/14). A extração padrão do pypdf quebrava cada palavra em uma linha; trocada pelo modo layout após inspeção.
+
+## Fase 5 — Pedidos, LGPD e memória
+
+- **Gerado:** prazos de devolução/troca/garantia, consulta de pedido com verificação de identidade, memória com `PostgresSaver`, retomada de conversa na CLI, modelo de LLM roteirizado para testes.
+- **Revisado/ajustado:** a validação manual revelou dois problemas que os testes não pegavam: (1) uma exceção em tool corrompia permanentemente a conversa salva — resolvido tratando erros no `ToolNode`; (2) o LLM recusava um pedido já verificado por desconfiar de um contato errado anterior — resolvido deixando explícito no prompt que a ferramenta decide a verificação. A falta de limite de tentativas foi registrada como limitação.

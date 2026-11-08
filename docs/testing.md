@@ -42,7 +42,8 @@ uv run ruff format --check .
 |---|---|---|
 | `tests/unit/` | Unitários | Lógica pura, sem banco nem LLM. |
 | `tests/integration/` | Integração | Sobem um Postgres temporário (`pgvector/pgvector:pg16`) com testcontainers e usam o modelo de embeddings real. Na primeira execução a imagem e o modelo (~0,22 GB, em `.cache/fastembed`) são baixados; depois leva cerca de 30 s. O container é removido ao final e não afeta o banco do `docker compose`. |
-| `tests/e2e/` | E2E | Grafo completo do agente com LLM real: catálogo e políticas. |
+| `tests/e2e/` | E2E | Grafo completo do agente com LLM real: catálogo, políticas e pedidos. |
+| `tests/fake_llm.py` | Apoio | Modelo de chat roteirizado para testar o grafo (erros de tool, memória) sem LLM real. |
 | `tests/fixtures/data/` | Fixtures | CSVs sintéticos usados pelos testes, com um caso de cada situação relevante (produto esgotado, descontinuado, `coming_soon`, promoções ativas duplicadas, e-mail compartilhado, total divergente). Os dados reais de `data/` não são usados. |
 | `tests/conftest.py` | Fixtures | Gera um manual de políticas sintético em PDF (`POLICY_PAGES`, com fpdf2) junto dos CSVs, para testar extração, chunking e retrieval. |
 

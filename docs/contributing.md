@@ -28,8 +28,9 @@ Decisões que mudam a arquitetura viram um novo ADR em [`adr/`](adr/), em vez de
 
 | Mudança | Arquivo(s) |
 |---|---|
-| Regra de preço, horário da loja | `src/emporio/domain/` |
+| Regra de preço, prazos de devolução, horário da loja | `src/emporio/domain/` |
 | Consulta ao banco usada por uma tool | `src/emporio/tools/` |
+| Memória de conversa | `src/emporio/agent/memory.py` |
 | Tool exposta ao LLM (descrição, formato do resultado) | `src/emporio/agent/tools.py` |
 | Ligar uma tool ao agente | `build_agent` em `src/emporio/agent/graph.py` |
 | Comportamento e tom do agente | `src/emporio/prompts/system.md` |
@@ -44,7 +45,7 @@ Decisões que mudam a arquitetura viram um novo ADR em [`adr/`](adr/), em vez de
 
 1. **Consulta:** função em `src/emporio/tools/` que recebe uma conexão e devolve dataclasses (sem formatação para o LLM).
 2. **Teste de integração** da consulta em `tests/integration/`, usando a fixture `loaded_conn`.
-3. **Tool:** em `src/emporio/agent/tools.py`, uma função com `@tool(parse_docstring=True)`. A docstring vira a descrição que o LLM lê: diga quando usar e descreva cada argumento na seção `Args`. Formate valores para o cliente (ex.: `format_brl`) e devolva um `dict`. Erros esperados voltam como `{"error": "..."}` para o agente se corrigir.
+3. **Tool:** em `src/emporio/agent/tools.py`, uma função com `@tool(parse_docstring=True)`. A docstring vira a descrição que o LLM lê: diga quando usar e descreva cada argumento na seção `Args`. Formate valores para o cliente (ex.: `format_brl`) e devolva um `dict`. Erros esperados (ex.: categoria inexistente) voltam como `{"error": "..."}` para o agente se corrigir; exceções inesperadas são capturadas pelo grafo e viram uma mensagem de falha, sem quebrar a conversa salva.
 4. **Teste unitário** do formato do resultado em `tests/unit/`.
 5. **Registro:** inclua a tool na lista de `build_agent`.
 6. **Prompt:** se o agente precisar de orientação sobre quando usar a tool, ajuste `system.md`.
@@ -79,6 +80,10 @@ Os testes de integração sempre usam um banco novo, então não precisam disso.
 - **Manual de políticas:** `POLICY_PAGES` em `tests/conftest.py`, gerado como PDF a cada execução dos testes.
 
 Ao mudar uma fixture, rode unit, integration e e2e: vários testes dependem das mesmas linhas.
+
+### Testar o grafo sem LLM
+
+`tests/fake_llm.py` tem um modelo roteirizado: devolve as mensagens na ordem dada, inclusive chamadas de tool (`tool_call(...)`). Serve para testar a montagem do grafo, tratamento de erros e memória sem custo nem variação (ex.: `tests/unit/test_graph_tool_errors.py`, `tests/integration/test_memory.py`).
 
 ## Testes
 

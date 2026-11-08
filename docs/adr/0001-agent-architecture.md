@@ -140,7 +140,11 @@ Documentadas aqui e replicadas no README.
 | 10 | Promoções múltiplas para o mesmo produto (96, 93, 99), todas inativas | Considerar apenas `is_active = 1`; se houver mais de uma ativa, aplicar a de maior desconto (não cumulativas). |
 | 11 | Pagamentos em `orders` usam códigos (`credit_6x`, `pix`) | Separar na ingestão em `payment_method` (`pix`, `debit`, `boleto`, `credit_card`) e `installments`; o rótulo legível é gerado no código. |
 | 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | A pipeline espera os nomes `products.csv`, …, `store_policies.pdf` em `data/` (ver `data/README.md`). |
-| 13 | Clientes 11 e 43 compartilham o e-mail `bruno.martins@jmail.com` | E-mail não é único. A verificação de identidade compara o contato com o cliente **do pedido**, nunca busca o cliente pelo e-mail; a ingestão emite *warning*. |
+| 13 | Clientes 11 e 43 compartilham o e-mail `bruno.martins@jmail.com` | E-mail não é único. A verificação de identidade compara o contato com o cliente **do pedido**, nunca busca o cliente pelo e-mail; a ingestão emite *warning*. Consequência aceita: quem usa o e-mail compartilhado consegue consultar os pedidos dos dois cadastros. |
+| 14 | Os status de `orders.csv` não têm definição | `pending` = aguardando confirmação do pagamento; `confirmed` = pagamento aprovado, em separação; `shipped` = enviado; `delivered` = entregue; `cancelled` = cancelado. |
+| 15 | Não há canal de venda (loja física ou online) nos pedidos | Todos os pedidos têm entrega e são tratados como compras online, então o direito de arrependimento (seção 4.1) se aplica. |
+| 16 | A seção 4.3 (troca por preferência) diz "em até 7 dias" sem dizer a partir de quando | Contado a partir do recebimento, como o arrependimento. |
+| 17 | Pedidos `shipped` com previsão de entrega já vencida (ex.: pedido 8, 28/02/2026) | O status registrado é informado como está; o agente aponta a data vencida e orienta falar com a equipe. |
 
 ## 4. Consequências
 
@@ -156,6 +160,8 @@ Documentadas aqui e replicadas no README.
 - RAG sobre 8 páginas é discutivelmente excessivo (mitigado pela justificativa de escalabilidade e rastreabilidade).
 - Modelo de embeddings local adiciona download na primeira execução.
 - Guardrail extra adiciona uma chamada de LLM por mensagem (pode ser substituído por instrução no prompt se a latência for problema).
+- Verificação de pedidos não limita tentativas por conversa: alguém pode testar vários contatos para um mesmo pedido (evolução: contador de falhas por `thread_id`).
+- O histórico de conversa fica no mesmo schema dos dados (tabelas do `PostgresSaver`); a ingestão não as apaga.
 
 ## 5. Fora de escopo (possível evolução)
 

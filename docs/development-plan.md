@@ -20,7 +20,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 2 | Regras de preço e tools de catálogo | cálculos batem com o manual; "GD20" encontra o Takamine | ✅ |
 | 3 | **Agente mínimo (fatia vertical)** | pergunta de preço respondida corretamente via CLI | ✅ |
 | 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ✅ |
-| 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ⬜ |
+| 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ✅ |
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ⬜ |
 | 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | ⬜ |
 | 8 | Evals e escolha do modelo | relatório de acurácia; modelo padrão definido | ⬜ |
@@ -177,16 +177,26 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 **Objetivo:** status de pedido seguro e conversas com contexto.
 
 **Entregas**
-- `src/emporio/domain/returns.py`: elegibilidade de devolução/troca/garantia a partir das datas (arrependimento 7 dias, defeito 30 dias, garantia legal 90 dias), usando `estimated_delivery` como proxy.
-- Tool `get_order_status(order_id, email_or_phone)`: só retorna dados se o contato bater com o cliente do pedido; mensagem genérica em caso de falha (não revela se o pedido existe).
-- `PostgresSaver` no grafo, `thread_id` por conversa; CLI aceita `--thread`.
+- `src/emporio/domain/returns.py`: prazos de arrependimento (7 dias do recebimento), troca por preferência (7 dias do recebimento), troca por defeito (30 dias da compra) e garantia legal (90 dias do recebimento), usando `estimated_delivery` como data de recebimento.
+- `src/emporio/tools/orders.py` + tool `get_order_status(order_id, email_or_phone)`: só retorna dados se o contato bater com o cliente do pedido (e-mail sem diferenciar maiúsculas; telefone com ou sem +55, máscara ou espaços); falha genérica que não revela se o pedido existe; resultado sem e-mail/telefone, só o primeiro nome.
+- `src/emporio/agent/memory.py`: `PostgresSaver` com pool próprio em autocommit; CLI aceita `--thread` para retomar conversas.
+- Erros de tool viram mensagem para o agente (`handle_tool_errors`), para o histórico salvo nunca ficar com chamada de tool sem resposta.
+- Prompt: fluxo de pedidos (pedir número + contato antes de consultar, ferramenta decide a verificação, não repetir dados de contato, prazos vêm da ferramenta).
 
 **Validação (gate)**
-- [ ] Unit: regras de elegibilidade com datas de borda (dia 7 vs dia 8, dia 30 vs dia 31).
-- [ ] Integration: pedido certo + e-mail certo → dados; e-mail de outro cliente → recusa; telefone em formatos diferentes é normalizado.
-- [ ] Integration: histórico persiste após recriar o grafo com o mesmo `thread_id`.
-- [ ] Manual (CLI, multi-turno): cliente informa pedido e e-mail, depois pergunta "posso devolver?" → agente aplica a política com a data correta.
-- [ ] E2E: fluxo de pedido com e sem verificação.
+- [x] Unit: prazos com datas de borda (último dia ainda vale, dia seguinte não; defeito conta da data da compra).
+- [x] Unit: normalização de telefone e comparação de contato; formato da tool sem dados de contato; erro de tool não interrompe o grafo (LLM falso).
+- [x] Integration: pedido + contato certo → dados; e-mail ou telefone de outro cliente → recusa; pedido inexistente → mesma recusa; telefone fixo e formatos com +55 aceitos.
+- [x] Integration: histórico persiste após recriar pool e grafo com o mesmo `thread_id`; conversas diferentes não se misturam.
+- [x] Manual (CLI, multi-turno, dados reais): pedido 1 + e-mail → status e rastreio; "posso devolver?" → aplica a política com o prazo calculado (01/11/2025, encerrado). Num processo novo com `--thread`, o agente responde o rastreio pelo histórico, sem tool.
+- [x] Manual (CLI): e-mail de outra cliente → recusa genérica; em seguida o telefone correto → pedido liberado; pedido 999 → mesma recusa genérica.
+- [x] E2E: agente pede o contato antes de consultar; contato errado não revela o pedido.
+
+**Notas da execução**
+- Bug encontrado: com histórico persistente, uma exceção em tool (tabela ausente no banco local) deixava a conversa salva com uma chamada de tool sem resposta, e o provedor recusava (`400`) todos os turnos seguintes daquela conversa. Correção: `handle_tool_errors` no `ToolNode`.
+- Ajuste de prompt: depois de um contato errado seguido do correto, o LLM recusava por desconfiança mesmo com a verificação aprovada, e culpava o telefone. O prompt agora diz que a ferramenta decide a verificação.
+- Limitação: não há limite de tentativas de verificação por conversa; alguém poderia testar vários contatos. Evolução: contador de falhas por `thread_id` no código, bloqueando após N tentativas.
+- O pedido 8 consta como enviado com previsão de entrega em 28/02/2026; o agente percebe que a data passou e orienta falar com a equipe.
 
 **Commits previstos:** `feat(tools)` (returns + orders), `feat(agent)` (memory), `test(tools)`, `test(agent)`
 
