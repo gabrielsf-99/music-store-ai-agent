@@ -59,7 +59,7 @@ As demais variáveis já vêm com valores padrão.
 
 ### 3. Colocar os dados em `data/`
 
-Copie os arquivos `categories.csv`, `products.csv`, `promotions.csv`, `customers.csv`, `orders.csv`, `order_items.csv` e `store_policies.pdf` para a pasta `data/`.
+Copie os arquivos `categories.csv`, `products.csv`, `promotions.csv`, `customers.csv`, `orders.csv`, `order_items.csv` e `store_policies.pdf` para a pasta `data/`. Não é preciso renomear: o manual também é aceito como `políticas_da_loja.pdf` e os CSVs com prefixo no nome (ex.: `planilha - orders.csv`).
 
 ### 4. Subir o banco e carregar os dados
 
@@ -186,6 +186,7 @@ O servidor sobe em http://127.0.0.1:2024 e abre o Studio no navegador (`https://
 | Erro de coluna em `policy_chunks` na ingestão | Banco criado com um schema anterior. Rode `docker compose down -v` e repita o passo 4. |
 | Agente responde "não foi possível consultar agora" | Uma tool falhou; o erro completo aparece no terminal. Causa comum: banco sem dados (`relation ... does not exist`) — rode a ingestão. |
 | `address already in use` ao subir a interface web | A porta 8000 está ocupada. Use `uv run chainlit run app.py --port 8080`. |
+| Studio mostra "Failed to fetch" | O navegador bloqueia o acesso de `smith.langchain.com` ao servidor local. No cadeado da URL → Configurações do site → **Acesso à rede local** → Permitir (no Brave, desative o Shields para o site). |
 
 ## Estrutura do projeto
 
