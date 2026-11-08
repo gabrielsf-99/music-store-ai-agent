@@ -26,4 +26,5 @@ def build_chat_model(
         max_retries=2,
         reasoning_effort=reasoning_effort,
         streaming=streaming,
+        stream_usage=True,  # off by default with a custom base_url; needed to measure tokens
     )
