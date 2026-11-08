@@ -45,9 +45,27 @@ uv run ruff format --check .
 | `tests/e2e/` | E2E | Grafo completo do agente com LLM real: catálogo, políticas e pedidos. |
 | `tests/fake_llm.py` | Apoio | Modelo de chat roteirizado para testar o grafo (erros de tool, memória, eventos da interface web) sem LLM real. |
 
-A interface web (`app.py`) não tem teste automatizado: a lógica dela fica em `src/emporio/ui/events.py`, coberta por `tests/unit/test_ui_events.py`, e a tela é validada manualmente no navegador.
 | `tests/fixtures/data/` | Fixtures | CSVs sintéticos usados pelos testes, com um caso de cada situação relevante (produto esgotado, descontinuado, `coming_soon`, promoções ativas duplicadas, e-mail compartilhado, total divergente). Os dados reais de `data/` não são usados. |
 | `tests/conftest.py` | Fixtures | Gera um manual de políticas sintético em PDF (`POLICY_PAGES`, com fpdf2) junto dos CSVs, para testar extração, chunking e retrieval. |
+
+A interface web (`app.py`) não tem teste automatizado: a lógica dela fica em `src/emporio/ui/events.py`, coberta por `tests/unit/test_ui_events.py`, e a tela é validada manualmente no navegador.
+
+## Avaliação (evals)
+
+Os testes verificam se o código está certo; os evals medem a **qualidade do agente** com os dados reais: se escolhe a tool certa, se a resposta traz os fatos esperados, latência e custo. Rodam contra o banco do `docker compose` (com a ingestão feita) e usam a chave do OpenRouter.
+
+```powershell
+uv run python -m evals.run                                    # modelo do LLM_MODEL
+uv run python -m evals.run --models openai/gpt-6-luna-pro anthropic/claude-haiku-5.5
+uv run python -m evals.run --cases catalog_price store_address  # só alguns casos
+```
+
+- **Casos:** `evals/dataset.yaml`, com perguntas de catálogo, loja, políticas, pedidos (inclusive multi-turno) e fora do escopo. Cada turno declara as tools aceitas, a decisão esperada do guardrail e os fatos que devem (ou não podem) aparecer. Contatos de clientes não ficam no arquivo: `{order_email:N}` e `{order_phone:N}` são lidos do banco na hora.
+- **Relatórios:** `evals/reports/<data>-<modelo>.md` (e `<data>-comparison.md` quando há mais de um modelo). As respostas completas ficam em `evals/reports/raw/`, fora do git, porque podem conter nomes de clientes.
+- **Métricas:** roteamento (guardrail e tools certos, por turno), fatos (turnos com fatos esperados que acertaram), latência p50/p95 por turno e custo pelos preços do OpenRouter.
+- A pontuação (`evals/scoring.py`) tem testes unitários em `tests/unit/test_eval_scoring.py`, que também validam o formato do `dataset.yaml`.
+
+Rode os evals ao trocar de modelo ou mudar prompt, tools ou guardrail. Como o LLM varia entre execuções, uma falha isolada não é regressão: repita o caso com `--cases` antes de concluir.
 
 ## Problemas comuns
 

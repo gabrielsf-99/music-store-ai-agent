@@ -54,6 +54,7 @@ Estratégia completa no ADR 0001, seção 2.6. Guia de execução em [docs/testi
 | `uv run pytest` | unit (padrão; integration e e2e excluídos) | nada |
 | `uv run pytest -m integration` | integration | Docker |
 | `uv run pytest -m e2e` | e2e | Docker + `OPENROUTER_API_KEY` |
+| `uv run python -m evals.run` | evals (qualidade, latência, custo) | banco local com ingestão + `OPENROUTER_API_KEY` |
 
 - Toda lógica nova (cálculo, regra de política, limpeza de dado) vem acompanhada de teste unitário.
 - Toda tool nova ganha teste de integração.

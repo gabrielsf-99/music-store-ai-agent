@@ -60,7 +60,7 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 | Retrieval de políticas | **RAG híbrido com chunk por subseção** (4.1, 4.2, 5.1…): busca vetorial + full-text do Postgres (dicionário `portuguese`) fundidas por RRF; o agente recebe as **2 seções de topo completas** (ex.: toda a seção 8 para "qual a garantia?") | Seções do manual já são unidades semânticas; metadado `section` permite rastrear a fonte. Medido com 14 perguntas reais: só vetorial acertou 11 no top-3; híbrido + seção completa acertou a seção certa em 13 (a falha, "endereço", é coberta pelo prompt). Escala se o manual crescer. | Manual inteiro no system prompt: viável pelo tamanho (~4k tokens) e mais simples; descartado para manter retrieval rastreável e escalável — registrado como alternativa válida. Chunk de tamanho fixo: quebra regras no meio. |
 | Busca de produtos por nome | **`pg_trgm` (similaridade fuzzy)** | Clientes escrevem "GD20", "takamine gd 20". Catálogo de 65 itens não justifica embeddings. | Embeddings no catálogo (overkill); `ILIKE` (frágil). |
 | Banco | **PostgreSQL 16 + pgvector + pg_trgm**, hospedagem agnóstica (ver 2.5) | Um único banco para relacional, vetores e histórico de conversa. | SQLite + Chroma/FAISS (setup zero, porém três mecanismos de persistência distintos). |
-| LLM | **OpenRouter** (via `langchain-openai` com `base_url`), modelo configurável por `LLM_MODEL` | Troca de modelo sem mudar código; permite comparar modelos nos evals. Requisito: tool calling confiável. | API direta de um provedor (acoplamento). |
+| LLM | **OpenRouter** (via `langchain-openai` com `base_url`), modelo configurável por `LLM_MODEL` | Troca de modelo sem mudar código; permite comparar modelos nos evals. Requisito: tool calling confiável. **Padrão: `anthropic/claude-haiku-5.5`**, escolhido pelos evals e E2E: na rodada final, os três candidatos acertaram 21/21; o Haiku foi o mais rápido (mediana 4,4 s, p95 6,0 s, contra 6,2 s / 16,8 s do `deepseek/deepseek-v4-flash` e 11,9 s / 16,9 s do `openai/gpt-6-luna-pro`), faz streaming e foi o único a passar em todos os E2E. O DeepSeek custa ~40% menos, mas seguiu instruções com menos rigor (pulou consultas obrigatórias, saída estruturada vazia no guardrail). Nas rodadas anteriores, o Haiku errava um caso de produto esgotado; a causa era a busca, que escondia produtos indisponíveis, e foi corrigida na tool. Relatórios em `evals/reports/`. | API direta de um provedor (acoplamento). |
 | Embeddings | **Modelo local multilíngue** via `fastembed` (ONNX): `paraphrase-multilingual-MiniLM-L12-v2`, 384 dimensões, 0,22 GB | Sem custo, sem segunda API key, determinístico, bom em pt-BR, sem PyTorch. Volume minúsculo (25 chunks). Modelos maiores (mpnet 1 GB, e5-large 2,2 GB) ficam como evolução. | Embeddings via API (confirmar suporte no OpenRouter; adiciona dependência externa). |
 | Interface | **Chainlit** (+ CLI para desenvolvimento) | Python puro (respeita a restrição), UI de chat pronta, exibe chamadas de tools/etapas — torna o raciocínio do agente visível para a equipe. O grafo continua síncrono e roda numa thread, ligado ao Chainlit por uma fila de eventos (`ui/events.py`): evita manter duas versões (sync e async) do pool e do checkpointer. A persistência própria do Chainlit fica desligada; o histórico é do `PostgresSaver`. | React + FastAPI (adiciona base JS e tempo sem ganho funcional para o protótipo); Streamlit (menos adequado a chat com steps); CLI (menos demonstrável). |
 | Histórico | **LangGraph `PostgresSaver`**, `thread_id` por sessão | Contexto multi-turno (ex.: cliente informa nº do pedido e depois pergunta sobre devolução). | Memória em processo (perde ao reiniciar). |
@@ -74,7 +74,7 @@ evals/  → conjunto de perguntas com comportamento esperado + relatório de acu
 
 | Tool | Entrada | Regras |
 |---|---|---|
-| `search_products` | `query?`, `category?`, `max_price?`, `min_price?`, `only_available=True` | Retorna preço de tabela, preço promocional (se houver promoção ativa), estoque, status. |
+| `search_products` | `query?`, `category?`, `max_price?`, `min_price?`, `only_available=True` | Retorna preço de tabela, preço promocional (se houver promoção ativa), estoque, status. Numa busca por nome, informa também os produtos parecidos que foram filtrados por indisponibilidade, para o agente não dizer que um produto esgotado não existe. |
 | `get_product_details` | `name_or_id` | Busca fuzzy; retorna specs, preço, promoção, opções de pagamento calculadas. Sugere alternativas se esgotado/descontinuado. |
 | `get_order_status` | `order_id`, `email_or_phone` | **Exige verificação de identidade** (LGPD). Nunca expõe dados de outro cliente. |
 | `list_active_promotions` | `category?` | Somente `is_active = 1`; sempre mostra preço original + % (seção 6.2 do manual). |
@@ -117,7 +117,7 @@ Requisitos do banco: extensões `vector` e `pg_trgm` (criadas pelo schema com `C
 | **Unit** | `tests/unit/` | Lógica pura: cálculo de preço (promoção, PIX, parcelamento, frete), regras de elegibilidade de troca/devolução, limpeza e validação dos CSVs, chunking do PDF por seção, montagem do system prompt. LLM e banco mockados. | Nenhuma | Sempre (`uv run pytest`) |
 | **Integration** | `tests/integration/` · `@pytest.mark.integration` | Tools executando SQL real; idempotência da ingestão; busca fuzzy (`pg_trgm`); retrieval retorna a seção esperada para perguntas conhecidas; persistência do `PostgresSaver`; verificação de identidade em `get_order_status`. | Docker (testcontainers + `pgvector/pgvector:pg16`) | `uv run pytest -m integration` |
 | **E2E** | `tests/e2e/` · `@pytest.mark.e2e` | Grafo completo com LLM real via OpenRouter, cenários de conversa: consulta de preço, catálogo com filtro, status de pedido com e sem verificação, devolução fora do prazo, acessório fora do escopo, pergunta fora do domínio, conversa multi-turno. Asserções sobre **tools chamadas e fatos-chave** (ex.: preço correto), não sobre o texto exato. | Docker + `OPENROUTER_API_KEY` | `uv run pytest -m e2e` (opt-in; consome tokens) |
-| **Evals** | `evals/` | Conjunto maior de perguntas com comportamento esperado; gera relatório de acurácia de roteamento (tool correta) e de fatos. Serve para comparar modelos/prompts. | Igual ao E2E | `uv run python -m evals` |
+| **Evals** | `evals/` | 20 casos (alguns multi-turno) contra os dados reais; relatório com acurácia de roteamento (guardrail e tool corretos), de fatos, latência e custo. Serve para comparar modelos e prompts. | Banco local com ingestão + `OPENROUTER_API_KEY` | `uv run python -m evals.run` |
 
 Diferença entre E2E e evals: E2E é **regressão pass/fail** com poucos cenários críticos; evals **medem qualidade** em um conjunto maior e produzem métricas.
 
@@ -140,12 +140,13 @@ Documentadas aqui e replicadas no README.
 | 9 | Pedidos até mar/2026; data atual posterior | Agente usa a data real do sistema; pedidos entregues tendem a estar fora do prazo de arrependimento (7 dias) → oferecer garantia legal/fabricante. |
 | 10 | Promoções múltiplas para o mesmo produto (96, 93, 99), todas inativas | Considerar apenas `is_active = 1`; se houver mais de uma ativa, aplicar a de maior desconto (não cumulativas). |
 | 11 | Pagamentos em `orders` usam códigos (`credit_6x`, `pix`) | Separar na ingestão em `payment_method` (`pix`, `debit`, `boleto`, `credit_card`) e `installments`; o rótulo legível é gerado no código. |
-| 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | A pipeline espera os nomes `products.csv`, …, `store_policies.pdf` em `data/` (ver `data/README.md`). |
+| 12 | Arquivos de entrada com prefixo longo, espaços e nomes em português (ex.: `políticas_da_loja.pdf`) | A pipeline usa os nomes `products.csv`, …, `store_policies.pdf` em `data/`, mas também aceita `políticas_da_loja.pdf` e CSVs com prefixo no nome (`... - orders.csv`), para não exigir renomear (ver `data/README.md`). |
 | 13 | Clientes 11 e 43 compartilham o e-mail `bruno.martins@jmail.com` | E-mail não é único. A verificação de identidade compara o contato com o cliente **do pedido**, nunca busca o cliente pelo e-mail; a ingestão emite *warning*. Consequência aceita: quem usa o e-mail compartilhado consegue consultar os pedidos dos dois cadastros. |
 | 14 | Os status de `orders.csv` não têm definição | `pending` = aguardando confirmação do pagamento; `confirmed` = pagamento aprovado, em separação; `shipped` = enviado; `delivered` = entregue; `cancelled` = cancelado. |
 | 15 | Não há canal de venda (loja física ou online) nos pedidos | Todos os pedidos têm entrega e são tratados como compras online, então o direito de arrependimento (seção 4.1) se aplica. |
 | 16 | A seção 4.3 (troca por preferência) diz "em até 7 dias" sem dizer a partir de quando | Contado a partir do recebimento, como o arrependimento. |
 | 17 | Pedidos `shipped` com previsão de entrega já vencida (ex.: pedido 8, 28/02/2026) | O status registrado é informado como está; o agente aponta a data vencida e orienta falar com a equipe. |
+| 18 | Os resultados das tools vão para o provedor do LLM (via OpenRouter), inclusive o primeiro nome do cliente e os itens do pedido verificado | Aceito no protótipo: só sai o mínimo (sem e-mail, telefone ou sobrenome). Em produção: contrato de tratamento de dados com o provedor (transferência internacional, LGPD) e restringir, no OpenRouter, a provedores sem retenção de dados. |
 
 ## 4. Consequências
 
@@ -157,7 +158,8 @@ Documentadas aqui e replicadas no README.
 - Raciocínio do agente visível na UI.
 
 **Negativas / riscos**
-- Testes de integração e E2E exigem Docker (mitigado: unitários rodam sem nada).- E2E consomem tokens e podem oscilar (mitigado: opt-in e asserções sobre comportamento, não texto).
+- Testes de integração e E2E exigem Docker (mitigado: unitários rodam sem nada).
+- E2E consomem tokens e podem oscilar (mitigado: opt-in e asserções sobre comportamento, não texto).
 - RAG sobre 8 páginas é discutivelmente excessivo (mitigado pela justificativa de escalabilidade e rastreabilidade).
 - Modelo de embeddings local adiciona download na primeira execução.
 - Guardrail extra adiciona uma chamada de LLM por mensagem: medido +2,7 s na mediana (~7,5 s → ~10,1 s). Alternativas se a latência pesar: rodar guardrail e agente em paralelo, ou remover o guardrail e confiar só no prompt.

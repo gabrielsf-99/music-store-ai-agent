@@ -118,6 +118,8 @@ uv run pytest -m integration        # quando mexer em SQL, ingestão ou retrieva
 uv run pytest -m e2e                # quando mexer em prompt, tools ou grafo
 ```
 
+Ao trocar de modelo ou mudar prompt, tools ou guardrail, rode também os evals (`uv run python -m evals.run`) e compare com o último relatório em `evals/reports/` ([como funciona](testing.md#avaliação-evals)).
+
 ## Commits
 
 [Conventional Commits](https://www.conventionalcommits.org/) em inglês: `<type>(<scope>): <resumo no imperativo, minúsculo, sem ponto>`.

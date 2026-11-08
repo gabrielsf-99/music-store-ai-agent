@@ -23,7 +23,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ✅ |
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ✅ |
 | 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | ✅ |
-| 8 | Evals e escolha do modelo | relatório de acurácia; modelo padrão definido | ⬜ |
+| 8 | Evals e escolha do modelo | relatório de acurácia; modelo padrão definido | ✅ |
 | 9 | Banco hospedado e entrega | ingestão no Supabase/VPS; README e exemplos | ⬜ |
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
@@ -264,14 +264,21 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 **Objetivo:** medir qualidade e justificar o modelo com dados.
 
 **Entregas**
-- `evals/dataset.yaml`: 15 a 20 perguntas com tool esperada e fatos esperados (catálogo, política, pedido, fora de escopo, multi-turno).
-- `evals/run.py`: executa o grafo, mede acurácia de roteamento e de fatos, latência e custo; gera relatório em Markdown.
-- Execução com 2 ou 3 modelos do OpenRouter.
+- `evals/dataset.yaml`: 21 casos com tools aceitas, decisão esperada do guardrail e fatos esperados/proibidos (catálogo, loja, política, pedido, fora de escopo, multi-turno). Contatos de clientes lidos do banco na hora (`{order_email:N}`), sem dados pessoais no repositório.
+- `evals/scoring.py` (pontuação pura, com testes unitários) e `evals/run.py`: executa o grafo, mede acurácia de roteamento e de fatos, latência e custo (tokens × preço do OpenRouter); gera relatório em Markdown por modelo e um comparativo.
+- Execução com 3 modelos do OpenRouter.
 
 **Validação (gate)**
-- [ ] Relatório gerado em `evals/reports/`.
-- [ ] Modelo padrão escolhido e justificado (registrar no README; novo ADR se mudar alguma decisão do ADR 0001).
-- [ ] Acurácia de roteamento ≥ 90% no modelo escolhido, ou limitação documentada.
+- [x] Relatório gerado em `evals/reports/` (rodada final: `2026-11-08-0927-*`).
+- [x] Modelo padrão escolhido e justificado: `anthropic/claude-haiku-5.5`, no README e no ADR 0001 (o ADR já previa modelo configurável; nenhuma decisão mudou, então não houve ADR novo).
+- [x] Acurácia de roteamento ≥ 90% no modelo escolhido: 100% (21/21 casos, 15/15 E2E).
+
+**Notas da execução**
+- Foram 4 rodadas com `openai/gpt-6-luna-pro`, `anthropic/claude-haiku-5.5` e `deepseek/deepseek-v4-flash`. As falhas foram analisadas uma a uma, lendo as respostas completas, antes de qualquer conclusão: duas eram falsos negativos da pontuação (resposta certa com palavra não prevista) e foram corrigidas no dataset.
+- O Haiku errou em três rodadas o mesmo caso: dizia que o Giannini GF-3D (esgotado) não existe. A causa era a tool: `search_products` filtra indisponíveis por padrão e o modelo não via o produto. Corrigido no código (a busca por nome informa os parecidos indisponíveis), o que resolveu para todos os modelos.
+- O DeepSeek foi escolhido primeiro (o mais barato, sem erros), mas os E2E mostraram que ele segue instruções com menos rigor: classificava "Tem cordas orquestrais?" como acessório (2 em 20 no guardrail isolado), às vezes devolvia saída estruturada vazia e pulava a consulta obrigatória ao catálogo. Com a correção da busca, a escolha foi revista com o usuário e ficou o Haiku: mais rápido, mais estável (p95 6 s) e 15/15 nos E2E.
+- O prompt do guardrail ficou mais explícito sobre "cordas orquestrais" (categoria de instrumentos) versus jogos de cordas (acessório): 140/140 na bateria isolada nos três modelos.
+- `stream_usage=True` no modelo: com `base_url` própria, o `ChatOpenAI` não pedia o uso de tokens no streaming e o custo saía zerado.
 
 **Commits previstos:** `feat(evals)`, `docs(evals)`
 

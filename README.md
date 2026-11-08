@@ -51,7 +51,7 @@ Copy-Item .env.example .env      # Linux/macOS: cp .env.example .env
 | Variável | O que colocar |
 |---|---|
 | `OPENROUTER_API_KEY` | Sua chave do OpenRouter. |
-| `LLM_MODEL` | Modelo com suporte a tools, ex.: `openai/gpt-6-luna-pro`. |
+| `LLM_MODEL` | Modelo do OpenRouter com suporte a tools. O `.env.example` já traz o padrão, `anthropic/claude-haiku-5.5` (ver [Escolha do modelo](#escolha-do-modelo)). |
 | `POSTGRES_PASSWORD` | Uma senha para o banco local. |
 | `DATABASE_URL` | A mesma senha no lugar de `change-me`. Mantenha `127.0.0.1` (com `localhost`, cada conexão atrasa ~5 s no Windows). |
 
@@ -151,7 +151,7 @@ Abre em http://localhost:8000. Para não abrir o navegador automaticamente, use 
 
 A configuração da interface fica em `.chainlit/config.toml` (nome, idioma, exibição dos passos). Upload de arquivos e edição de mensagens estão desligados: o agente não lê arquivos, e editar uma mensagem duplicaria o turno no histórico salvo.
 
-Com o modelo atual (`openai/gpt-6-luna-pro`), a resposta aparece de uma vez, não palavra por palavra: o provedor não transmite o texto em partes. A interface já faz streaming com modelos que transmitem.
+A resposta aparece aos poucos, conforme o modelo gera o texto. Alguns modelos (ex.: `openai/gpt-6-luna-pro`) entregam a resposta de uma vez; com eles, ela aparece inteira no final.
 
 ## Inspecionando o agente no LangGraph Studio
 
@@ -165,6 +165,18 @@ O servidor sobe em http://127.0.0.1:2024 e abre o Studio no navegador (`https://
 
 É o mesmo agente da CLI e da interface web (guardrail, tools, banco e LLM reais), com uma diferença: as conversas ficam na persistência do próprio servidor de desenvolvimento (pasta `.langgraph_api/`), não no Postgres.
 
+## Escolha do modelo
+
+O modelo padrão foi escolhido medindo, não por preferência: `uv run python -m evals.run` roda 21 casos de avaliação (catálogo, loja, políticas, pedidos, fora do escopo) contra os dados reais e mede se o agente usa a ferramenta certa, se a resposta traz os fatos esperados, a latência e o custo. Resultado da rodada final ([relatório](evals/reports/2026-11-08-0927-comparison.md)):
+
+| Modelo | Casos ok | Latência mediana / p95 | Custo por conversa | Resposta em partes |
+|---|---|---|---|---|
+| **`anthropic/claude-haiku-5.5`** (padrão) | 21/21 | 4,4 s / 6,0 s | US$ 0,0010 | sim |
+| `deepseek/deepseek-v4-flash` | 21/21 | 6,2 s / 16,8 s | US$ 0,0006 | sim |
+| `openai/gpt-6-luna-pro` | 21/21 | 11,9 s / 16,9 s | US$ 0,0019 | não |
+
+Com os três empatados em acerto, o Haiku venceu por ser o mais rápido e o mais estável, e foi o único que passou em todos os testes E2E: o DeepSeek, mais barato, às vezes pulava consultas obrigatórias ao catálogo. Para trocar de modelo, mude `LLM_MODEL` no `.env` e rode os evals. Como avaliar: [docs/testing.md](docs/testing.md#avaliação-evals).
+
 ## Comandos úteis
 
 | Comando | Para quê |
@@ -174,6 +186,7 @@ O servidor sobe em http://127.0.0.1:2024 e abre o Studio no navegador (`https://
 | `docker compose down` | Para o banco (os dados ficam no volume). |
 | `docker compose down -v` | Para o banco e apaga os dados. |
 | `uv run pytest` | Testes unitários. Guia completo em [docs/testing.md](docs/testing.md). |
+| `uv run python -m evals.run` | Avaliação do agente (qualidade, latência e custo); consome tokens. |
 
 ## Problemas comuns
 
@@ -207,6 +220,7 @@ app.py                interface web (Chainlit)
 langgraph.json        configuração do `langgraph dev` / LangGraph Studio
 chainlit.md           texto de apresentação da interface web
 .chainlit/            configuração do Chainlit
+evals/                casos de avaliação, script e relatórios
 tests/                unit, integration e e2e
 ```
 
