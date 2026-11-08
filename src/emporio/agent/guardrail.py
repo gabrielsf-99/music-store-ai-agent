@@ -49,7 +49,8 @@ def build_transcript(messages: Sequence[BaseMessage]) -> str:
 
 
 def llm_classifier(llm: BaseChatModel) -> Classifier:
-    structured = llm.with_structured_output(ScopeDecision)
+    # "nostream": keep the classifier's raw JSON out of LangGraph's message stream (UI).
+    structured = llm.with_structured_output(ScopeDecision).with_config(tags=["nostream"])
     return structured.invoke
 
 

@@ -18,6 +18,7 @@ from emporio.config import Settings, get_settings
 from emporio.llm import build_chat_model
 from emporio.prompts.system import build_system_prompt
 from emporio.rag.embeddings import embed_texts, warm_up
+from emporio.tools.catalog import list_offered_categories
 
 log = logging.getLogger(__name__)
 
@@ -81,14 +82,14 @@ def build_agent(
     settings = settings or get_settings()
     timezone = ZoneInfo(settings.timezone)
     with pool.connection() as conn:
-        categories = [row[0] for row in conn.execute("SELECT name FROM categories ORDER BY name")]
+        categories = list_offered_categories(conn)
     warm_up()
 
     def now() -> datetime:
         return datetime.now(timezone)
 
     return build_graph(
-        llm=build_chat_model(settings),
+        llm=build_chat_model(settings, streaming=True),
         tools=[
             *build_catalog_tools(pool),
             *build_policy_tools(pool, embed_texts),
