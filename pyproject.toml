@@ -19,8 +19,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "fpdf2>=2.9.0",
+    "httpx>=0.28.1",
     "langgraph-cli[inmem]>=0.4.42",
     "pytest>=8.3",
+    "pyyaml>=6.0.3",
     "ruff>=0.8",
     "testcontainers>=4.15.0",
 ]
@@ -34,7 +36,7 @@ packages = ["src/emporio"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "."]
 addopts = "-m 'not integration and not e2e'"
 markers = [
     "integration: requires Docker (Postgres container)",
