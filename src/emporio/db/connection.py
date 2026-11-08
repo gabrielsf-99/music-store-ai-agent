@@ -21,11 +21,12 @@ def set_search_path(conn: psycopg.Connection, schema: str) -> None:
     `extensions` is included because Supabase installs extensions there. Runs outside a
     transaction so a later rollback does not undo it.
     """
+    autocommit = conn.autocommit
     conn.autocommit = True
     conn.execute(
         sql.SQL("SET search_path TO {}, public, extensions").format(sql.Identifier(schema))
     )
-    conn.autocommit = False
+    conn.autocommit = autocommit
 
 
 def connect(database_url: str | None = None, schema: str | None = None) -> psycopg.Connection:
@@ -36,14 +37,25 @@ def connect(database_url: str | None = None, schema: str | None = None) -> psyco
 
 
 def create_pool(
-    database_url: str | None = None, schema: str | None = None, max_size: int = 5
+    database_url: str | None = None,
+    schema: str | None = None,
+    max_size: int = 5,
+    autocommit: bool = False,
 ) -> ConnectionPool:
+    """Connection pool. `autocommit=True` is what LangGraph's PostgresSaver requires.
+
+    `prepare_threshold=None` disables prepared statements, which Supabase poolers reject.
+    """
     database_url, schema = _resolve(database_url, schema)
     return ConnectionPool(
         database_url,
         min_size=1,
         max_size=max_size,
-        kwargs={"connect_timeout": CONNECT_TIMEOUT_SECONDS},
+        kwargs={
+            "connect_timeout": CONNECT_TIMEOUT_SECONDS,
+            "autocommit": autocommit,
+            "prepare_threshold": None,
+        },
         configure=lambda conn: set_search_path(conn, schema),
         open=True,
     )
