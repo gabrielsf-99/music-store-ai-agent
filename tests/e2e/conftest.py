@@ -14,6 +14,7 @@ from emporio.db.connection import create_pool
 class Turn:
     answer: str
     tool_calls: list[dict]
+    scope: str
 
     @property
     def tool_names(self) -> list[str]:
@@ -31,7 +32,8 @@ def agent(database_url, loaded_conn, test_schema):
 
 @pytest.fixture
 def ask(agent):
-    """Send messages in one conversation; returns the answer and the tools called in that turn."""
+    """Send messages in one conversation; returns the answer, the tools called in that turn and
+    the guardrail decision."""
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
 
     def _ask(text: str) -> Turn:
@@ -39,6 +41,6 @@ def ask(agent):
         result = agent.invoke({"messages": [HumanMessage(text)]}, config)
         new_messages = result["messages"][before:]
         calls = [c for m in new_messages if isinstance(m, AIMessage) for c in m.tool_calls]
-        return Turn(answer=result["messages"][-1].text, tool_calls=calls)
+        return Turn(answer=result["messages"][-1].text, tool_calls=calls, scope=result["scope"])
 
     return _ask

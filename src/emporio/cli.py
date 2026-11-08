@@ -21,9 +21,11 @@ EXIT_COMMANDS = {"sair", "exit", "quit"}
 def _print_updates(graph, text: str, config: dict) -> None:
     for update in graph.stream({"messages": [HumanMessage(text)]}, config, stream_mode="updates"):
         for node, payload in update.items():
-            if node != "agent":
+            if node == "guardrail" and payload.get("scope") != "in_scope":
+                print(f"  [guardrail] {payload['scope']}")
+            if node not in ("agent", "guardrail"):
                 continue
-            for message in payload["messages"]:
+            for message in payload.get("messages", []):
                 for call in message.tool_calls:
                     args = json.dumps(call["args"], ensure_ascii=False)
                     print(f"  [tool] {call['name']}({args})")
