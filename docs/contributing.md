@@ -34,6 +34,7 @@ Decisões que mudam a arquitetura viram um novo ADR em [`adr/`](adr/), em vez de
 | Tool exposta ao LLM (descrição, formato do resultado) | `src/emporio/agent/tools.py` |
 | Ligar uma tool ao agente | `build_agent` em `src/emporio/agent/graph.py` |
 | Comportamento e tom do agente | `src/emporio/prompts/system.md` |
+| O que o guardrail barra e como responde | `src/emporio/prompts/guardrail.md` (lógica em `agent/guardrail.py`) |
 | Tabelas | `src/emporio/db/schema.sql` |
 | Limpeza e validação dos CSVs | `src/emporio/ingest/cleaning.py` e `checks.py` |
 | Chunking do manual | `src/emporio/ingest/policies.py` |
@@ -61,6 +62,12 @@ uv run pytest tests/unit/test_system_prompt.py
 uv run python -m emporio.cli -m "<pergunta afetada pela mudança>"
 uv run pytest -m e2e
 ```
+
+Rode **todos** os E2E, não só os da área alterada: uma regra nova pode competir com outra (na Fase 6, a seção de reclamações fez o agente deixar de consultar a política de defeito).
+
+### Alterar o guardrail
+
+As categorias e o tom das recusas ficam em `src/emporio/prompts/guardrail.md`. Ao mudar, valide os dois lados nos E2E de `tests/e2e/test_guardrail_flows.py`: o que deve ser barrado e, igualmente importante, as mensagens legítimas que **não** podem ser barradas (ex.: "violão de 7 cordas" contém "cordas", mas é instrumento).
 
 ### Alterar o schema
 

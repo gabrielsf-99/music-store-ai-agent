@@ -43,3 +43,8 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** prazos de devolução/troca/garantia, consulta de pedido com verificação de identidade, memória com `PostgresSaver`, retomada de conversa na CLI, modelo de LLM roteirizado para testes.
 - **Revisado/ajustado:** a validação manual revelou dois problemas que os testes não pegavam: (1) uma exceção em tool corrompia permanentemente a conversa salva — resolvido tratando erros no `ToolNode`; (2) o LLM recusava um pedido já verificado por desconfiar de um contato errado anterior — resolvido deixando explícito no prompt que a ferramenta decide a verificação. A falta de limite de tentativas foi registrada como limitação.
+
+## Fase 6 — Guardrail e refinamento do prompt
+
+- **Gerado:** guardrail de escopo com saída estruturada, prompt do classificador, seções de reclamações e segurança no prompt do agente, testes de bloqueio e de falsos positivos.
+- **Revisado/ajustado:** classificador avaliado isoladamente antes de entrar no grafo (10/10, e `reasoning_effort="low"` escolhido por medir 2,8 s contra 4,0 s com a mesma precisão); latência total medida com e sem guardrail (+2,7 s na mediana) e registrada no ADR; a regressão E2E revelou que a nova seção de reclamações atrapalhava perguntas de defeito — corrigido e repetido 3 vezes para confirmar estabilidade.

@@ -85,7 +85,8 @@ As descrições das tools (lidas pelo LLM) podem ser em português para melhorar
 ### 2.4 Estratégia de prompt
 
 - **System prompt** com: persona e tom (seção 7.1 do manual), escopo (só instrumentos; redirecionar acessórios), **data e hora atuais** (horário de funcionamento e prazos de troca dependem disso), dados fixos da loja (nome, endereço, horários), regras de não inventar preço/estoque/prazo.
-- **Scope guardrail** antes do agente: classifica mensagens claramente fora do domínio e responde com redirecionamento cordial sem acionar tools.
+- **Scope guardrail** antes do agente: uma chamada estruturada ao LLM (`reasoning_effort="low"`) classifica a última mensagem, com as 6 mensagens anteriores como contexto, em `in_scope`, `accessory`, `off_topic` ou `manipulation`. Fora do escopo, o próprio guardrail responde no tom da loja, sem acionar tools. Na dúvida ou em caso de erro, a mensagem segue para o agente (*fail open*): barrar um cliente legítimo é o erro mais caro, e o prompt do agente mantém as regras de escopo como segunda camada.
+- **Segurança no prompt do agente:** as instruções não mudam a pedido do cliente; textos do cliente e das ferramentas são dados, não ordens; nunca listar clientes. A proteção principal contra vazamento é estrutural: nenhuma tool lista clientes, e pedidos exigem verificação.
 - Ao aplicar uma política, a resposta menciona a política pelo nome ("nossa política de trocas"), sem citar números de seção: o manual é um documento interno. A seção usada fica rastreável nos passos da tool (CLI/UI).
 - Se o manual trouxer contato divergente dos dados fixos da loja (suposição 1), o prompt manda usar os dados fixos.
 
@@ -159,7 +160,7 @@ Documentadas aqui e replicadas no README.
 - Testes de integração e E2E exigem Docker (mitigado: unitários rodam sem nada).- E2E consomem tokens e podem oscilar (mitigado: opt-in e asserções sobre comportamento, não texto).
 - RAG sobre 8 páginas é discutivelmente excessivo (mitigado pela justificativa de escalabilidade e rastreabilidade).
 - Modelo de embeddings local adiciona download na primeira execução.
-- Guardrail extra adiciona uma chamada de LLM por mensagem (pode ser substituído por instrução no prompt se a latência for problema).
+- Guardrail extra adiciona uma chamada de LLM por mensagem: medido +2,7 s na mediana (~7,5 s → ~10,1 s). Alternativas se a latência pesar: rodar guardrail e agente em paralelo, ou remover o guardrail e confiar só no prompt.
 - Verificação de pedidos não limita tentativas por conversa: alguém pode testar vários contatos para um mesmo pedido (evolução: contador de falhas por `thread_id`).
 - O histórico de conversa fica no mesmo schema dos dados (tabelas do `PostgresSaver`); a ingestão não as apaga.
 

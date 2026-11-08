@@ -12,13 +12,16 @@ As conversas ficam salvas no Postgres e podem ser retomadas. A interface web est
 ## Como funciona
 
 ```
-Cliente ──► Agente (LangGraph + LLM via OpenRouter) ──► histórico da conversa no Postgres
+Cliente ──► Guardrail de escopo ──(fora do escopo: responde sem tools)
+               │
+               ▼
+            Agente (LangGraph + LLM via OpenRouter) ──► histórico da conversa no Postgres
                ├── tools de catálogo ──► Postgres (SQL parametrizado, busca fuzzy)
                ├── tool de políticas  ──► Postgres + pgvector (busca híbrida no manual)
                └── tool de pedidos    ──► Postgres (só com e-mail ou telefone do cliente)
 ```
 
-Preços, PIX e parcelas são calculados no código, não pelo LLM. Decisões e justificativas: [ADR 0001](docs/adr/0001-agent-architecture.md).
+O guardrail barra pedidos de acessórios (a loja só vende instrumentos), assuntos fora da loja e tentativas de manipulação. Preços, PIX e parcelas são calculados no código, não pelo LLM. Decisões e justificativas: [ADR 0001](docs/adr/0001-agent-architecture.md).
 
 ## Requisitos
 
@@ -91,6 +94,11 @@ Você: Quanto custa o Takamine GD20?
   [tool] get_product_details({"product": "Takamine GD20"})
 
 Empório: O Takamine GD20 Dreadnought Natural está por R$ 2.199,00. No PIX, fica R$ 2.089,05...
+
+Você: Vocês vendem palhetas?
+  [guardrail] accessory
+
+Empório: Trabalhamos exclusivamente com instrumentos musicais, então não vendemos palhetas...
 ```
 
 ### Modo roteirizado
@@ -121,7 +129,9 @@ uv run python -m emporio.cli --thread cli-3f2a...
 | Garantia | "Qual a garantia dos instrumentos?" |
 | Pedido | "Quero saber do meu pedido 1" → o agente pede o e-mail ou telefone da compra |
 | Devolução de um pedido | Depois de consultar o pedido: "Posso devolver?" |
-| Fora do escopo | "Vocês vendem encordoamento?" |
+| Acessório | "Vocês vendem encordoamento?" |
+| Fora do escopo | "Quem ganhou o jogo ontem?" |
+| Reclamação | "Meu ukulele chegou riscado, estou chateado" |
 
 Os dados de clientes e pedidos para testar estão em `data/customers.csv` e `data/orders.csv`.
 
@@ -156,11 +166,11 @@ Em desenvolvimento (Fase 7 do [plano](docs/development-plan.md)): chat no navega
 data/                 dados de entrada (formato em data/README.md)
 docs/                 ADRs, plano, guias de testes e de contribuição
 src/emporio/
-  agent/              grafo LangGraph, tools expostas ao LLM e memória
+  agent/              grafo LangGraph, guardrail, tools expostas ao LLM e memória
   db/                 conexão, pool e schema SQL
   domain/             regras de negócio (preços, prazos de devolução, horário da loja)
   ingest/             pipeline de ingestão (CSVs e PDF)
-  prompts/            prompt de sistema
+  prompts/            prompts do agente e do guardrail
   rag/                embeddings e busca no manual de políticas
   tools/              consultas ao catálogo e a pedidos
   cli.py              chat no terminal
