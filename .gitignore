@@ -36,6 +36,9 @@ htmlcov/
 .chainlit/translations/
 .files/
 
+# Eval raw answers (may contain customer names)
+evals/reports/raw/
+
 # LangGraph dev server local persistence
 .langgraph_api/
 
