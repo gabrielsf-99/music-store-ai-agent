@@ -5,7 +5,12 @@ from langchain_core.messages import AIMessage
 
 
 class ScriptedChatModel(GenericFakeChatModel):
-    """Returns the given messages in order; `bind_tools` is a no-op."""
+    """Returns the given messages in order; `bind_tools` is a no-op.
+
+    Streaming is disabled: the fake model cannot stream a tool-call message with no text.
+    """
+
+    disable_streaming: bool = True
 
     def bind_tools(self, tools, **kwargs):
         return self
