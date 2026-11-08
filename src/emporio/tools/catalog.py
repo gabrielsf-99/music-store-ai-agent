@@ -81,6 +81,16 @@ def match_categories(categories: dict[int, str], query: str) -> list[int]:
     return sorted(cid for cid, score in scores.items() if score == best)
 
 
+def list_offered_categories(conn: psycopg.Connection) -> list[str]:
+    """Names of categories with at least one product; empty ones are not presented as offered."""
+    rows = conn.execute(
+        "SELECT name FROM categories c"
+        " WHERE EXISTS (SELECT 1 FROM products p WHERE p.category_id = c.category_id)"
+        " ORDER BY name"
+    )
+    return [row[0] for row in rows]
+
+
 def _resolve_categories(conn: psycopg.Connection, query: str) -> list[int]:
     categories = dict(conn.execute("SELECT category_id, name FROM categories").fetchall())
     matched = match_categories(categories, query)

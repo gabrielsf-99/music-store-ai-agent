@@ -16,6 +16,7 @@ from emporio.tools.catalog import (
     UnknownCategoryError,
     get_product_details,
     list_active_promotions,
+    list_offered_categories,
     search_products,
 )
 
@@ -65,6 +66,10 @@ def test_unknown_category_lists_valid_ones(loaded_conn):
 
 def test_category_without_products_returns_empty(loaded_conn):
     assert search_products(loaded_conn, category="sopro") == []
+
+
+def test_offered_categories_skip_categories_without_products(loaded_conn):
+    assert list_offered_categories(loaded_conn) == ["Ukuleles", "Violões"]
 
 
 def test_product_details_by_name(loaded_conn):

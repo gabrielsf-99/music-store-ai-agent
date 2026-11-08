@@ -22,5 +22,5 @@ def test_system_prompt_includes_store_data_time_and_categories():
     assert "Rua 14 de Maio, 3200" in prompt
     assert "(67) 3341-4444" in prompt
     assert "quinta-feira, 05/11/2026 15:30" in prompt
-    assert "Categorias do catálogo: Ukuleles, Violões." in prompt
+    assert "Categorias com produtos no catálogo: Ukuleles, Violões." in prompt
     assert "{" not in prompt  # every placeholder was filled

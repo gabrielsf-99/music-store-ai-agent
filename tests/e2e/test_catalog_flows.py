@@ -23,3 +23,11 @@ def test_catalog_question_lists_only_available_products(ask):
     assert "search_products" in turn.tool_names
     assert "Aurora" in turn.answer
     assert "Pampa" not in turn.answer  # discontinued
+
+
+@pytest.mark.parametrize("question", ["Tem cordas orquestrais?", "Vocês vendem saxofone?"])
+def test_instrument_not_in_catalog_is_checked_not_refused_as_accessory(ask, question):
+    turn = ask(question)
+
+    assert "search_products" in turn.tool_names
+    assert "acessório" not in turn.answer.lower()
