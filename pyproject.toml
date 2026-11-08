@@ -8,6 +8,7 @@ dependencies = [
     "fastembed>=0.9.1",
     "langchain-openai>=1.7.4",
     "langgraph>=1.2.20",
+    "langgraph-checkpoint-postgres>=3.2.0",
     "psycopg-pool>=3.3.3",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.6",
@@ -31,6 +32,7 @@ packages = ["src/emporio"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["tests"]
 addopts = "-m 'not integration and not e2e'"
 markers = [
     "integration: requires Docker (Postgres container)",
