@@ -1,5 +1,7 @@
 """LangChain tools exposed to the LLM. Results carry values already formatted in BRL."""
 
+from collections.abc import Callable
+from datetime import date
 from decimal import Decimal
 
 from langchain_core.tools import BaseTool, tool
@@ -8,8 +10,23 @@ from psycopg_pool import ConnectionPool
 from emporio.domain.pricing import PIX_DISCOUNT_PERCENT, format_brl
 from emporio.rag import retriever
 from emporio.rag.embeddings import Embedder
-from emporio.tools import catalog
+from emporio.tools import catalog, orders
 from emporio.tools.catalog import ProductDetails, ProductOffer, UnknownCategoryError
+from emporio.tools.orders import OrderStatus
+
+# Meaning of each status in orders.csv (ADR 0001, assumption 14).
+ORDER_STATUS_LABELS = {
+    "pending": "pendente (aguardando confirmação do pagamento)",
+    "confirmed": "confirmado (pagamento aprovado, em separação)",
+    "shipped": "enviado (a caminho)",
+    "delivered": "entregue",
+    "cancelled": "cancelado",
+}
+PAYMENT_LABELS = {"pix": "PIX", "debit": "cartão de débito", "boleto": "boleto bancário"}
+ORDER_NOT_FOUND = (
+    "Não foi possível localizar um pedido com esses dados. Peça ao cliente para conferir o "
+    "número do pedido e o e-mail ou telefone usado na compra."
+)
 
 MAX_PRODUCTS_PER_RESULT = 10
 
@@ -80,6 +97,46 @@ def offers_result(offers: list[ProductOffer]) -> dict:
             "e ofereça refinar a busca (faixa de preço, tipo, marca)."
         )
     return result
+
+
+def payment_label(method: str, installments: int | None) -> str:
+    if method == "credit_card":
+        return f"cartão de crédito em {installments}x"
+    return PAYMENT_LABELS[method]
+
+
+def order_to_dict(order: OrderStatus) -> dict:
+    data = {
+        "order_id": order.order_id,
+        "customer_first_name": order.customer_first_name,
+        "status": ORDER_STATUS_LABELS[order.status],
+        "order_date": f"{order.order_date:%d/%m/%Y}",
+        "total": format_brl(order.total),
+        "payment": payment_label(order.payment_method, order.installments),
+        "items": [f"{item.quantity}x {item.name}" for item in order.items],
+    }
+    if order.tracking_code:
+        data["tracking_code"] = order.tracking_code
+    if order.estimated_delivery:
+        data["estimated_delivery"] = f"{order.estimated_delivery:%d/%m/%Y}"
+    if order.notes:
+        data["notes"] = order.notes
+    if order.deadlines:
+        data["return_deadlines"] = [
+            {
+                "type": d.name,
+                "until": f"{d.until:%d/%m/%Y}",
+                "situation": f"dentro do prazo (faltam {d.days_left} dias)"
+                if d.is_open
+                else "prazo encerrado",
+            }
+            for d in order.deadlines
+        ]
+    elif order.status != "cancelled":
+        data["return_deadlines_note"] = (
+            "os prazos de devolução e troca contam a partir do recebimento"
+        )
+    return data
 
 
 def _to_decimal(value: float | None) -> Decimal | None:
@@ -174,3 +231,24 @@ def build_policy_tools(pool: ConnectionPool, embed: Embedder) -> list[BaseTool]:
         }
 
     return [search_policies]
+
+
+def build_order_tools(pool: ConnectionPool, today: Callable[[], date]) -> list[BaseTool]:
+    @tool(parse_docstring=True)
+    def get_order_status(order_id: int, email_or_phone: str) -> dict:
+        """Consulta um pedido: status, itens, pagamento, rastreio e prazos de devolução/troca.
+
+        Exige o número do pedido E o e-mail ou telefone usado na compra, ambos informados pelo
+        cliente nesta conversa. Nunca invente nem reutilize dados de outro cliente.
+
+        Args:
+            order_id: Número do pedido.
+            email_or_phone: E-mail ou telefone (com DDD) cadastrado na compra.
+        """
+        with pool.connection() as conn:
+            order = orders.get_order_status(conn, order_id, email_or_phone, today())
+        if order is None:
+            return {"error": ORDER_NOT_FOUND}
+        return order_to_dict(order)
+
+    return [get_order_status]
