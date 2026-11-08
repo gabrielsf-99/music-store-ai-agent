@@ -36,6 +36,9 @@ htmlcov/
 .chainlit/translations/
 .files/
 
+# LangGraph dev server local persistence
+.langgraph_api/
+
 # Local embedding model cache
 .cache/
 local_cache/
