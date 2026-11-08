@@ -99,6 +99,27 @@ def offers_result(offers: list[ProductOffer]) -> dict:
     return result
 
 
+MAX_UNAVAILABLE_MATCHES = 3
+
+
+def search_result(offers: list[ProductOffer], only_available: bool, query: str | None) -> dict:
+    """Search result for the LLM. With a name query, products filtered out for being unavailable
+    are still reported: otherwise the model says an out-of-stock product does not exist."""
+    if not only_available:
+        return offers_result(offers)
+    result = offers_result([o for o in offers if o.available])
+    hidden = [o for o in offers if not o.available][:MAX_UNAVAILABLE_MATCHES]
+    if query and hidden:
+        result["unavailable_matches"] = [
+            {"name": o.name, "availability": availability(o)} for o in hidden
+        ]
+        result["unavailable_note"] = (
+            "Produtos do catálogo com nome parecido que não estão disponíveis para compra. Se o "
+            "cliente perguntou por um deles, informe a situação; não diga que o produto não existe."
+        )
+    return result
+
+
 def payment_label(method: str, installments: int | None) -> str:
     if method == "credit_card":
         return f"cartão de crédito em {installments}x"
@@ -172,11 +193,11 @@ def build_catalog_tools(pool: ConnectionPool) -> list[BaseTool]:
                     category=category,
                     min_price=_to_decimal(min_price),
                     max_price=_to_decimal(max_price),
-                    only_available=only_available,
+                    only_available=False,
                 )
         except UnknownCategoryError as exc:
             return {"error": str(exc)}
-        return offers_result(offers)
+        return search_result(offers, only_available, query)
 
     @tool(parse_docstring=True)
     def get_product_details(product: str) -> dict:

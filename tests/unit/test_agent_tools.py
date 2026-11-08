@@ -7,6 +7,7 @@ from emporio.agent.tools import (
     availability,
     offer_to_dict,
     offers_result,
+    search_result,
 )
 from emporio.domain.pricing import price_product
 from emporio.tools.catalog import ProductOffer
@@ -79,3 +80,29 @@ def test_offers_result_without_truncation_has_no_note():
 
     assert result["total_found"] == result["shown"] == 1
     assert "note" not in result
+
+
+def test_search_by_name_reports_unavailable_matches():
+    offers = [make_offer(), make_offer(stock=0)]
+
+    result = search_result(offers, only_available=True, query="GD20")
+
+    assert result["total_found"] == 1
+    assert result["unavailable_matches"] == [
+        {"name": "Takamine GD20 Dreadnought Natural", "availability": "esgotado no momento"}
+    ]
+    assert "não diga que o produto não existe" in result["unavailable_note"]
+
+
+def test_search_without_query_does_not_report_unavailable():
+    result = search_result([make_offer(stock=0)], only_available=True, query=None)
+
+    assert result["total_found"] == 0
+    assert "unavailable_matches" not in result
+
+
+def test_search_including_unavailable_lists_them_as_products():
+    result = search_result([make_offer(stock=0)], only_available=False, query="GD20")
+
+    assert result["total_found"] == 1
+    assert "unavailable_matches" not in result
