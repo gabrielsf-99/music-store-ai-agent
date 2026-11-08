@@ -14,6 +14,8 @@ Coloque os arquivos abaixo nesta pasta antes de rodar a ingestão (`uv run pytho
 | `order_items.csv` | Itens de cada pedido |
 | `store_policies.pdf` | Manual de políticas e procedimentos de atendimento |
 
+Também são aceitos o manual com o nome `políticas_da_loja.pdf` e CSVs exportados com prefixo no nome (ex.: `planilha - orders.csv`). Se houver o nome exato, ele tem prioridade.
+
 Todos os CSVs em UTF-8, separados por vírgula, com cabeçalho na primeira linha.
 
 ## Colunas

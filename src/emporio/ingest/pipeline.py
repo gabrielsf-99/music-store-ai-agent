@@ -1,4 +1,6 @@
 import csv
+import re
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,7 +23,8 @@ CLEANERS = {
 }
 
 POLICIES_FILE = "store_policies.pdf"
-REQUIRED_FILES = (*(f"{table}.csv" for table in CLEANERS), POLICIES_FILE)
+POLICIES_ALIASES = (POLICIES_FILE, "politicas_da_loja.pdf")
+POLICIES_KEY = "policies"
 
 
 class MissingInputFilesError(FileNotFoundError):
@@ -34,12 +37,47 @@ class IngestReport:
     warnings: list[str]
 
 
-def check_input_files(data_dir: Path) -> None:
-    missing = [name for name in REQUIRED_FILES if not (data_dir / name).is_file()]
+def _normalize_name(name: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", name.lower())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+def _matches_table(name: str, table: str) -> bool:
+    """`orders.csv` or an exported name ending in it, e.g. `export - orders.csv`."""
+    return re.fullmatch(rf"(.*[\s_-])?{table}\.csv", name) is not None
+
+
+def locate_input_files(data_dir: Path) -> dict[str, Path]:
+    """Path of each input file, keyed by table name (and `policies` for the PDF).
+
+    Exact names win; otherwise accepts the policy manual as `políticas_da_loja.pdf` and CSVs
+    whose name ends in ` - <table>.csv`, as the files are sometimes exported.
+    """
+    if not data_dir.is_dir():
+        raise MissingInputFilesError(f"data folder not found: {data_dir} (see data/README.md)")
+    files = {_normalize_name(p.name): p for p in data_dir.iterdir() if p.is_file()}
+    found: dict[str, Path] = {}
+    missing: list[str] = []
+    for table in CLEANERS:
+        exact = files.get(f"{table}.csv")
+        candidates = [exact] if exact else [p for n, p in files.items() if _matches_table(n, table)]
+        if len(candidates) > 1:
+            names = ", ".join(sorted(p.name for p in candidates))
+            raise MissingInputFilesError(f"more than one file for {table}.csv: {names}")
+        if candidates:
+            found[table] = candidates[0]
+        else:
+            missing.append(f"{table}.csv")
+    policies = next((files[a] for a in POLICIES_ALIASES if a in files), None)
+    if policies:
+        found[POLICIES_KEY] = policies
+    else:
+        missing.append(POLICIES_FILE)
     if missing:
         raise MissingInputFilesError(
             f"missing input files in {data_dir}: {', '.join(missing)} (see data/README.md)"
         )
+    return found
 
 
 def read_csv(path: Path) -> list[cleaning.Row]:
@@ -49,9 +87,9 @@ def read_csv(path: Path) -> list[cleaning.Row]:
 
 def build_dataset(data_dir: Path) -> Dataset:
     """Read, clean and validate all CSVs. Raises on any invalid data."""
-    check_input_files(data_dir)
+    files = locate_input_files(data_dir)
     tables = {
-        table: cleaning.clean_rows(f"{table}.csv", read_csv(data_dir / f"{table}.csv"), clean)
+        table: cleaning.clean_rows(files[table].name, read_csv(files[table]), clean)
         for table, clean in CLEANERS.items()
     }
     data = Dataset(**tables)
@@ -60,9 +98,10 @@ def build_dataset(data_dir: Path) -> Dataset:
 
 
 def build_policy_chunks(data_dir: Path) -> list[PolicyChunk]:
-    chunks = split_sections(extract_pdf_text(data_dir / POLICIES_FILE))
+    path = locate_input_files(data_dir)[POLICIES_KEY]
+    chunks = split_sections(extract_pdf_text(path))
     if not chunks:
-        raise DataValidationError(f"{POLICIES_FILE}: no numbered sections found")
+        raise DataValidationError(f"{path.name}: no numbered sections found")
     return chunks
 
 

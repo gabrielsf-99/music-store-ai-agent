@@ -8,7 +8,7 @@ from pathlib import Path
 from emporio.config import get_settings
 from emporio.db.connection import connect
 from emporio.ingest.cleaning import DataValidationError
-from emporio.ingest.pipeline import MissingInputFilesError, check_input_files, run
+from emporio.ingest.pipeline import MissingInputFilesError, locate_input_files, run
 
 log = logging.getLogger("emporio.ingest")
 
@@ -22,7 +22,7 @@ def main(argv: list[str] | None = None) -> int:
         logging.getLogger(noisy).setLevel(logging.ERROR)
 
     try:
-        check_input_files(args.data_dir)
+        locate_input_files(args.data_dir)
         schema = get_settings().db_schema
         with connect() as conn:
             report = run(args.data_dir, conn, schema)
