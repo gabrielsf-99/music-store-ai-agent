@@ -7,7 +7,7 @@ Assistente virtual da **Empório da Música**, loja de instrumentos musicais em 
 - **Informações gerais:** endereço, contatos e horário de funcionamento, incluindo se a loja está aberta agora.
 - **Pedidos:** status, itens, rastreio e prazos de devolução/troca/garantia, após confirmar o e-mail ou telefone do cliente.
 
-As conversas ficam salvas no Postgres e podem ser retomadas. A interface web está em desenvolvimento ([plano](docs/development-plan.md)).
+Dá para conversar pelo navegador (Chainlit) ou pelo terminal. As conversas ficam salvas no Postgres.
 
 ## Como funciona
 
@@ -73,7 +73,8 @@ A ingestão valida os dados, mostra avisos de inconsistência e carrega tudo em 
 ### 5. Conversar com o agente
 
 ```powershell
-uv run python -m emporio.cli
+uv run chainlit run app.py          # navegador, em http://localhost:8000
+uv run python -m emporio.cli        # ou pelo terminal
 ```
 
 ## Usando o agente pelo terminal
@@ -135,9 +136,34 @@ uv run python -m emporio.cli --thread cli-3f2a...
 
 Os dados de clientes e pedidos para testar estão em `data/customers.csv` e `data/orders.csv`.
 
-## Interface web
+## Usando o agente pelo navegador
 
-Em desenvolvimento (Fase 7 do [plano](docs/development-plan.md)): chat no navegador com Chainlit, mostrando as ferramentas consultadas em cada resposta.
+```powershell
+uv run chainlit run app.py
+```
+
+Abre em http://localhost:8000. Para não abrir o navegador automaticamente, use `--headless`; para outra porta, `--port 8080`.
+
+- **Sugestões iniciais:** botões com perguntas de exemplo (violões, promoções, trocas, pedido).
+- **Ferramentas visíveis:** cada consulta do agente aparece como um passo recolhível acima da resposta ("Buscando no catálogo", "Consultando o pedido"…), com a entrada e o resultado.
+- **Uma conversa por aba:** cada aba ou "Nova conversa" começa um atendimento novo, salvo no Postgres com id `web-<sessão>`.
+- **Readme:** o botão de informações mostra o `chainlit.md` com o que o assistente sabe fazer.
+
+A configuração da interface fica em `.chainlit/config.toml` (nome, idioma, exibição dos passos). Upload de arquivos e edição de mensagens estão desligados: o agente não lê arquivos, e editar uma mensagem duplicaria o turno no histórico salvo.
+
+Com o modelo atual (`openai/gpt-6-luna-pro`), a resposta aparece de uma vez, não palavra por palavra: o provedor não transmite o texto em partes. A interface já faz streaming com modelos que transmitem.
+
+## Inspecionando o agente no LangGraph Studio
+
+Para ver o grafo e depurar conversas passo a passo (estado de cada nó, chamadas de tool, decisão do guardrail):
+
+```powershell
+uv run langgraph dev
+```
+
+O servidor sobe em http://127.0.0.1:2024 e abre o Studio no navegador (`https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`). Use `--no-browser` para não abrir automaticamente. A configuração está em `langgraph.json`, que aponta para o grafo `emporio` em `src/emporio/agent/studio.py`.
+
+É o mesmo agente da CLI e da interface web (guardrail, tools, banco e LLM reais), com uma diferença: as conversas ficam na persistência do próprio servidor de desenvolvimento (pasta `.langgraph_api/`), não no Postgres.
 
 ## Comandos úteis
 
@@ -159,6 +185,7 @@ Em desenvolvimento (Fase 7 do [plano](docs/development-plan.md)): chat no navega
 | `401` ao conversar | Chave do OpenRouter inválida ou conta sem acesso. Gere uma nova chave no painel. |
 | Erro de coluna em `policy_chunks` na ingestão | Banco criado com um schema anterior. Rode `docker compose down -v` e repita o passo 4. |
 | Agente responde "não foi possível consultar agora" | Uma tool falhou; o erro completo aparece no terminal. Causa comum: banco sem dados (`relation ... does not exist`) — rode a ingestão. |
+| `address already in use` ao subir a interface web | A porta 8000 está ocupada. Use `uv run chainlit run app.py --port 8080`. |
 
 ## Estrutura do projeto
 
@@ -173,7 +200,12 @@ src/emporio/
   prompts/            prompts do agente e do guardrail
   rag/                embeddings e busca no manual de políticas
   tools/              consultas ao catálogo e a pedidos
+  ui/                 eventos da conversa para a interface web
   cli.py              chat no terminal
+app.py                interface web (Chainlit)
+langgraph.json        configuração do `langgraph dev` / LangGraph Studio
+chainlit.md           texto de apresentação da interface web
+.chainlit/            configuração do Chainlit
 tests/                unit, integration e e2e
 ```
 

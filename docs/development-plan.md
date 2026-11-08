@@ -22,7 +22,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 4 | RAG do manual de políticas | perguntas de política recuperam a seção certa | ✅ |
 | 5 | Pedidos, LGPD e memória | pedido só com verificação; conversa multi-turno | ✅ |
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ✅ |
-| 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | ⬜ |
+| 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | 🟨 |
 | 8 | Evals e escolha do modelo | relatório de acurácia; modelo padrão definido | ⬜ |
 | 9 | Banco hospedado e entrega | ingestão no Supabase/VPS; README e exemplos | ⬜ |
 
@@ -234,12 +234,25 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 **Objetivo:** experiência de chat demonstrável.
 
 **Entregas**
-- `app.py` com Chainlit: uma conversa por sessão (`thread_id`), streaming de resposta, steps mostrando cada tool chamada.
-- Mensagem de boas-vindas da persona e *starters* com perguntas de exemplo.
+- `src/emporio/ui/events.py`: traduz o stream do LangGraph em eventos (token, início/fim de tool, resposta do guardrail) e executa o grafo síncrono numa thread (`in_thread`).
+- `src/emporio/ui/runtime.py`: um agente por processo, compartilhado pelas sessões.
+- `app.py` com Chainlit: uma conversa por sessão (`thread_id` = `web-<sessão>`), streaming quando o modelo transmite, um passo por tool com rótulo em português, entrada e resultado; mensagem de erro amigável se a execução falhar.
+- *Starters* com perguntas de exemplo e `chainlit.md` como apresentação (no lugar de uma mensagem de boas-vindas, que esconderia os starters).
+- `.chainlit/config.toml`: nome e descrição, pt-BR, só passos de tool, upload e edição de mensagem desligados.
+- Modelo do agente com `streaming=True`; classificador do guardrail fora do stream (tag `nostream`).
 
 **Validação (gate)**
-- [ ] Manual: `uv run chainlit run app.py` abre no navegador; os cenários das fases 3 a 6 funcionam pela UI.
-- [ ] Manual: duas abas do navegador mantêm conversas independentes.
+- [x] Unit: eventos de uma execução com tool (início, fim, tokens que formam a resposta), de uma mensagem barrada pelo guardrail, e da ponte thread → async (ordem e propagação de erro).
+- [x] Manual (script, modelo real): texto montado pelos eventos é idêntico à resposta salva no histórico.
+- [x] Manual (servidor): `uv run chainlit run app.py --headless` sobe sem erros; página com título "Empório da Música"; configurações com os 4 starters, readme e `cot = tool_call`.
+- [ ] Manual (navegador): os cenários das fases 3 a 6 funcionam pela UI.
+- [ ] Manual (navegador): duas abas mantêm conversas independentes.
+
+**Notas da execução**
+- O modelo atual entrega a resposta num bloco só, mesmo com `streaming=True` e chamado direto, fora do grafo: é o provedor. A interface faz streaming de verdade com modelos que transmitem.
+- Bug pego pelo teste unitário: o filtro de eventos aceitava só `AIMessageChunk`; com modelo sem streaming, o LangGraph entrega uma `AIMessage` e a resposta sumiria da tela.
+- O Chainlit ativa a persistência própria quando existe `DATABASE_URL` no ambiente (a nossa variável) e quebrava por falta do driver `asyncpg`. Desligada com `@cl.data_layer` retornando `None`: o histórico já é do `PostgresSaver`.
+- Os itens de navegador ficam com o usuário: a sessão de desenvolvimento não tem navegador.
 
 **Commits previstos:** `feat(ui)`
 

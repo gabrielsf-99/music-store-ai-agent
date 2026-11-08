@@ -31,6 +31,9 @@ Decisões que mudam a arquitetura viram um novo ADR em [`adr/`](adr/), em vez de
 | Regra de preço, prazos de devolução, horário da loja | `src/emporio/domain/` |
 | Consulta ao banco usada por uma tool | `src/emporio/tools/` |
 | Memória de conversa | `src/emporio/agent/memory.py` |
+| O que a interface web mostra de cada execução (tokens, tools, guardrail) | `src/emporio/ui/events.py` |
+| Tela do chat: starters, rótulos das tools, mensagens de erro | `app.py` |
+| Nome, idioma e recursos da interface | `.chainlit/config.toml` |
 | Tool exposta ao LLM (descrição, formato do resultado) | `src/emporio/agent/tools.py` |
 | Ligar uma tool ao agente | `build_agent` em `src/emporio/agent/graph.py` |
 | Comportamento e tom do agente | `src/emporio/prompts/system.md` |
@@ -52,6 +55,19 @@ Decisões que mudam a arquitetura viram um novo ADR em [`adr/`](adr/), em vez de
 6. **Prompt:** se o agente precisar de orientação sobre quando usar a tool, ajuste `system.md`.
 7. **E2E:** um cenário em `tests/e2e/` verificando que a tool é chamada e os fatos-chave aparecem na resposta.
 8. **Validação manual:** `uv run python -m emporio.cli -m "<pergunta>"` e confira a linha `[tool]`.
+9. **Interface web:** adicione um rótulo amigável em `TOOL_LABELS` (`app.py`); sem ele, o passo aparece com o nome técnico da tool.
+
+### Alterar a interface web
+
+O grafo é síncrono (o `PostgresSaver` não tem API assíncrona) e o Chainlit é assíncrono. A ponte fica em `src/emporio/ui/events.py`: `turn_events` traduz o stream do LangGraph em eventos simples e `in_thread` o executa numa thread. O `app.py` só desenha esses eventos. Lógica nova de exibição vai em `events.py`, com teste em `tests/unit/test_ui_events.py`; o `app.py` deve continuar fino.
+
+Para validar, rode `uv run chainlit run app.py` e teste no navegador; `--watch` recarrega ao salvar arquivos.
+
+### Depurar no LangGraph Studio
+
+`uv run langgraph dev` sobe o agente com o servidor de desenvolvimento do LangGraph (configurado em `langgraph.json`) e abre o Studio. Útil para ver por onde a conversa passou (guardrail → agente → tools), o estado em cada nó e repetir um passo. O servidor recarrega quando o código muda.
+
+O grafo exportado (`src/emporio/agent/studio.py`) não usa o `PostgresSaver`: o servidor do LangGraph fornece a própria persistência. Se mudar a forma de montar o agente em `build_agent`, o Studio acompanha automaticamente.
 
 ### Alterar o prompt
 

@@ -48,3 +48,10 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** guardrail de escopo com saída estruturada, prompt do classificador, seções de reclamações e segurança no prompt do agente, testes de bloqueio e de falsos positivos.
 - **Revisado/ajustado:** classificador avaliado isoladamente antes de entrar no grafo (10/10, e `reasoning_effort="low"` escolhido por medir 2,8 s contra 4,0 s com a mesma precisão); latência total medida com e sem guardrail (+2,7 s na mediana) e registrada no ADR; a regressão E2E revelou que a nova seção de reclamações atrapalhava perguntas de defeito — corrigido e repetido 3 vezes para confirmar estabilidade.
+
+## Fase 7 — Interface Chainlit
+
+- **Gerado:** camada de eventos independente do Chainlit (stream do LangGraph → eventos, ponte thread → async), `app.py` com starters e passos de tool, configuração do Chainlit, testes da camada de eventos.
+- **Revisado/ajustado:** a falta de streaming foi isolada até o provedor (chamada direta ao modelo, fora do grafo); o teste unitário revelou que respostas de modelos sem streaming sumiriam da tela; ao subir o servidor, descobriu-se que o Chainlit tentava usar o `DATABASE_URL` do projeto para a própria persistência. A validação no navegador ficou com o desenvolvedor.
+- **Categorias vazias:** o desenvolvedor notou, testando, que o agente oferecia cordas orquestrais e sopros (categorias sem produtos) e, corrigido isso, passou a recusar "cordas orquestrais" como se fosse acessório. O prompt agora lista só categorias com produtos e diferencia instrumento ausente de acessório; cenário coberto por E2E.
+- **LangGraph Studio:** a pedido, `langgraph.json` e um módulo que exporta o grafo sem o `PostgresSaver` (o servidor tem persistência própria); validado com uma conversa pela API do `langgraph dev` (tool de catálogo e guardrail funcionando, sem alertas de chamadas bloqueantes).
