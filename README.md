@@ -221,18 +221,44 @@ Os dados têm divergências que exigiram uma decisão. As principais (lista comp
 | Status dos pedidos sem definição | `pending`, `confirmed`, `shipped`, `delivered` e `cancelled` com significado definido no ADR. |
 | Pedidos sem canal de venda | Tratados como compras online: vale o direito de arrependimento. |
 
-## Limitações e próximos passos
+## Limitações
 
-| Limitação | Próximo passo |
+| Limitação | Impacto |
 |---|---|
-| A verificação de pedido não limita tentativas: dá para testar vários contatos. | Contador de falhas por conversa, bloqueando após N tentativas. |
-| O guardrail é uma chamada extra de LLM (+2,7 s na mediana). | Rodar guardrail e agente em paralelo. |
-| Quem usa o e-mail compartilhado por dois cadastros vê os pedidos dos dois. | Verificar por telefone quando o e-mail não for único. |
-| Alternativas a um produto esgotado consideram só categoria e preço. | Priorizar especificações parecidas (ex.: nylon com nylon). |
-| O frete não é calculado por CEP. | Integrar com a API dos Correios ou da transportadora. |
-| Resultados das tools (primeiro nome e itens do pedido) vão para o provedor do LLM. | Contrato de tratamento de dados e provedores sem retenção no OpenRouter. |
-| Sem observabilidade nem CI. | LangSmith ou Langfuse; testes unitários e de integração a cada push. |
-| Reclamações não são registradas, só encaminhadas para a equipe. | Tool que abre um chamado. |
+| A verificação de pedido não limita tentativas. | Dá para testar vários e-mails ou telefones para o mesmo pedido. |
+| O guardrail é uma chamada extra de LLM. | +2,7 s na mediana de cada resposta. |
+| Dois cadastros compartilham o mesmo e-mail. | Quem usa esse e-mail vê os pedidos dos dois. |
+| Alternativas a um produto esgotado consideram só categoria e preço. | Para um violão de nylon, pode sugerir um de aço. |
+| O frete não é calculado por CEP. | O agente informa modalidades e prazos, mas não o valor. |
+| Resultados das tools vão para o provedor do LLM. | Primeiro nome e itens do pedido saem via OpenRouter (e-mail, telefone e sobrenome não). |
+| Reclamações não são registradas. | O agente só encaminha para a equipe. |
+| Sem observabilidade nem CI. | Sem tracing das conversas e sem testes a cada push. |
+
+## Próximos passos
+
+**Negócio**
+
+| Próximo passo | Objetivo |
+|---|---|
+| Integrar com gateway de pagamento | Fechar o pedido dentro da conversa. |
+| Integrar com a API do WhatsApp ou Evolution API | Atender no canal que o cliente já usa. |
+| Cadastro de clientes | Reconhecer quem está falando e dispensar a confirmação de contato a cada pedido. |
+| Recuperação de acesso | Permitir que o cliente recupere a conta (ex.: código por e-mail ou WhatsApp). |
+| Mensagens de push com promoções | Aumentar a conversão com notificações segmentadas por interesse. |
+| Fotos dos produtos nas mensagens, inclusive POV | Aumentar a percepção de valor e deixar a conversa mais real e humanizada. |
+
+**Técnicos**
+
+| Próximo passo | Resolve |
+|---|---|
+| Contador de falhas de verificação por conversa, bloqueando após N tentativas | Tentativas ilimitadas. |
+| Rodar guardrail e agente em paralelo | Latência do guardrail. |
+| Verificar por telefone quando o e-mail não for único | E-mail compartilhado. |
+| Priorizar especificações parecidas nas alternativas | Sugestões fora do tipo do produto. |
+| Integrar com a API dos Correios ou da transportadora | Frete por CEP. |
+| Contrato de tratamento de dados e provedores sem retenção no OpenRouter | Dados enviados ao provedor do LLM. |
+| Tool que abre um chamado de reclamação | Reclamações não registradas. |
+| LangSmith ou Langfuse; testes unitários e de integração a cada push | Observabilidade e CI. |
 
 ## Uso do Claude Code
 
