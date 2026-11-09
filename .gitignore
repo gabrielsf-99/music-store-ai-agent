@@ -2,10 +2,6 @@
 .temp/*
 .CLAUDE.md
 
-# Input data
-data/*
-!data/README.md
-
 # Secrets (never commit credentials)
 .env
 .env.*

@@ -1,6 +1,6 @@
 # Dados de entrada
 
-Coloque os arquivos abaixo nesta pasta antes de rodar a ingestão (`uv run python -m emporio.ingest`).
+Dados da loja carregados pela ingestão (`uv run python -m emporio.ingest`). Para usar outros dados, substitua os arquivos mantendo o formato abaixo.
 
 ## Arquivos esperados
 
