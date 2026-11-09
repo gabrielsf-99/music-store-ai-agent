@@ -60,3 +60,9 @@ Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que e
 
 - **Gerado:** conjunto de 21 casos, pontuação com testes unitários, script que mede roteamento, fatos, latência e custo e gera relatórios comparativos; bateria isolada do guardrail para mensagens limítrofes.
 - **Revisado/ajustado:** cada falha foi lida na resposta completa antes de virar conclusão: duas eram falsos negativos da pontuação; uma (produto esgotado "não existe") era defeito da tool, corrigido no código. O modelo foi escolhido duas vezes: primeiro o DeepSeek, pelos evals; depois a regressão E2E mostrou que ele pulava instruções, e com o defeito da tool corrigido o desenvolvedor decidiu pelo Haiku. Também se descobriu que o custo saía zerado com streaming via OpenRouter (`stream_usage`).
+
+## Entrega
+
+- **Pedido:** fechar o projeto com README completo, exemplos de conversa e dados versionados, para quem clonar rodar tudo do zero.
+- **Gerado:** seções de decisões, suposições, limitações e uso do Claude Code no README; 5 conversas reais exportadas da CLI em `examples/`.
+- **Revisado/ajustado:** os valores de cada exemplo (preços, PIX, parcelas e prazos de devolução) foram conferidos contra as regras do manual antes de entrar no repositório; o teste de clone limpo validou que o README basta para subir o agente.

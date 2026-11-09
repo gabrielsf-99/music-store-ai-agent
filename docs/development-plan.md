@@ -24,7 +24,7 @@ Plano incremental para construir o agente descrito no [ADR 0001](adr/0001-agent-
 | 6 | Guardrail e refinamento do prompt | fora de escopo e acessórios tratados | ✅ |
 | 7 | Interface Chainlit | conversa completa no navegador com steps visíveis | ✅ |
 | 8 | Evals e escolha do modelo | relatório de acurácia; modelo padrão definido | ✅ |
-| 9 | Banco hospedado e entrega | ingestão no Supabase/VPS; README e exemplos | ⬜ |
+| 9 | Entrega | clone limpo funcionando; README e exemplos | ✅ |
 
 Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
@@ -264,7 +264,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 **Objetivo:** medir qualidade e justificar o modelo com dados.
 
 **Entregas**
-- `evals/dataset.yaml`: 21 casos com tools aceitas, decisão esperada do guardrail e fatos esperados/proibidos (catálogo, loja, política, pedido, fora de escopo, multi-turno). Contatos de clientes lidos do banco na hora (`{order_email:N}`), sem dados pessoais no repositório.
+- `evals/dataset.yaml`: 21 casos com tools aceitas, decisão esperada do guardrail e fatos esperados/proibidos (catálogo, loja, política, pedido, fora de escopo, multi-turno). Contatos de clientes lidos do banco na hora (`{order_email:N}`), para o conjunto não depender dos dados de um cliente específico.
 - `evals/scoring.py` (pontuação pura, com testes unitários) e `evals/run.py`: executa o grafo, mede acurácia de roteamento e de fatos, latência e custo (tokens × preço do OpenRouter); gera relatório em Markdown por modelo e um comparativo.
 - Execução com 3 modelos do OpenRouter.
 
@@ -284,23 +284,25 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 
 ---
 
-## Fase 9 — Banco hospedado e entrega
+## Fase 9 — Entrega
 
-**Objetivo:** produto final documentado e reproduzível.
+**Objetivo:** produto final documentado e reproduzível a partir de um clone.
 
 **Entregas**
-- Ingestão executada no banco hospedado (Supabase ou VPS) apenas trocando `DATABASE_URL`; checar schema `emporio` e os cuidados da seção 2.5 do ADR.
+- Dados de entrada versionados em `data/`, para rodar tudo do zero sem arquivos externos.
 - `README.md`: instalação, configuração do modelo, comandos, decisões técnicas (resumo do ADR), suposições dos dados, limitações e próximos passos, uso do Claude Code.
-- `examples/`: 3 a 5 conversas reais exportadas da aplicação (catálogo, informação da loja, preço, devolução com política, fora de escopo).
+- `examples/`: 5 conversas reais exportadas da aplicação (catálogo e preço, informação da loja, pedido e devolução com política, promoções e políticas, fora de escopo).
 - `docs/ai-workflow.md` consolidado.
 
 **Validação (gate)**
-- [ ] App funcionando apontando para o banco hospedado.
-- [ ] **Teste de clone limpo:** clonar o repositório em outra pasta, copiar os dados para `data/`, seguir só o README e conseguir conversar com o agente.
-- [ ] `uv run pytest` e `uv run pytest -m integration` verdes; `-m e2e` executado e resultado registrado.
-- [ ] Nenhum segredo no histórico (`git log -p | Select-String "sk-or-"` vazio).
+- [x] **Teste de clone limpo:** clone em outra pasta com banco Postgres vazio; seguindo só o README: `uv sync`, ingestão (65 produtos, 25 seções do manual), 163 testes unitários verdes e conversa pela CLI com tools de catálogo e de políticas.
+- [x] `uv run pytest` (163) e `uv run pytest -m integration` (37) verdes; `-m e2e` 15/15 com o Haiku na Fase 8, sem mudança de código depois.
+- [x] Nenhum segredo no histórico: a única ocorrência de `sk-or-` é o texto deste gate.
 
-**Commits previstos:** `docs`, `docs(examples)`, `chore(db)`
+**Notas da execução**
+- Os 5 exemplos foram gerados pela CLI com o modelo padrão; preços, PIX, parcelas e prazos de devolução conferidos contra as regras do manual.
+
+**Commits previstos:** `chore(ingest)`, `docs(examples)`, `docs`
 
 ---
 
