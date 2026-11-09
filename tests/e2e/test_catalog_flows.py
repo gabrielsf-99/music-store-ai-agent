@@ -29,5 +29,5 @@ def test_catalog_question_lists_only_available_products(ask):
 def test_instrument_not_in_catalog_is_checked_not_refused_as_accessory(ask, question):
     turn = ask(question)
 
+    assert turn.scope == "in_scope"
     assert "search_products" in turn.tool_names
-    assert "acessório" not in turn.answer.lower()
