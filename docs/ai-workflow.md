@@ -1,68 +1,68 @@
-# Uso do Claude Code no projeto
+# Use of Claude Code in the project
 
-Registro de como o assistente foi usado em cada etapa: o que foi pedido, o que ele gerou e o que mudou na revisão.
+A log of how the assistant was used in each phase: what was asked, what it generated and what changed in review.
 
-## Análise e arquitetura
+## Analysis and architecture
 
-- **Pedido:** análise técnica dos requisitos e dos dados, avaliação da stack proposta (LangGraph, OpenRouter, Postgres, pipeline de ingestão, React).
-- **Gerado:** análise dos dados (volume, inconsistências), recomendação de RAG apenas para o manual de políticas e tools com SQL para dados estruturados, troca de React por Chainlit; ADR 0001 e `CLAUDE.md`.
-- **Revisado/ajustado:** padronização de nomes de arquivos e código em inglês; inclusão da estratégia de testes em três camadas; banco agnóstico de provedor (Supabase ou VPS).
+- **Asked:** technical analysis of the requirements and the data, evaluation of the proposed stack (LangGraph, OpenRouter, Postgres, ingestion pipeline, React).
+- **Generated:** data analysis (volume, inconsistencies), recommendation of RAG only for the policy manual and SQL tools for structured data, replacing React with Chainlit; ADR 0001 and `CLAUDE.md`.
+- **Reviewed/adjusted:** English names for files and code; a three-layer testing strategy; provider-agnostic database (Supabase or VPS).
 
-## Plano de desenvolvimento
+## Development plan
 
-- **Pedido:** plano incremental com validação por etapa.
-- **Gerado:** `docs/development-plan.md` com 10 fases, cada uma com entregas, gate de validação e commits previstos.
-- **Revisado/ajustado:** dados de entrada fora do repositório (só `data/README.md` com o formato); testes automatizados com fixtures sintéticas.
+- **Asked:** an incremental plan with validation at each phase.
+- **Generated:** `docs/development-plan.md` with 10 phases, each with deliverables, a validation gate and planned commits.
+- **Reviewed/adjusted:** input data kept out of the repository at first (only `data/README.md` with the format); automated tests with synthetic fixtures.
 
-## Fase 0 — Fundação
+## Phase 0 — Foundation
 
-- **Gerado:** `pyproject.toml` (uv), settings, `docker-compose.yml`, checagem de conexão.
-- **Revisado/ajustado:** instalação do uv e do Docker Desktop; diagnóstico de conexão travando no Windows (`localhost` → IPv6), corrigido com `127.0.0.1` e timeout.
+- **Generated:** `pyproject.toml` (uv), settings, `docker-compose.yml`, connection check.
+- **Reviewed/adjusted:** installing uv and Docker Desktop; diagnosing a connection hang on Windows (`localhost` → IPv6), fixed with `127.0.0.1` and a timeout.
 
-## Fase 1 — Schema e ingestão
+## Phase 1 — Schema and ingestion
 
-- **Gerado:** schema SQL, pipeline de ingestão (limpeza, checagens, carga transacional), fixtures sintéticas, testes unitários e de integração com testcontainers.
-- **Revisado/ajustado:** perfil dos dados reais revelou contagens erradas no ADR (65 produtos, 50 clientes) e e-mail compartilhado entre dois clientes — registrado como suposição nº 13.
+- **Generated:** SQL schema, ingestion pipeline (cleaning, checks, transactional load), synthetic fixtures, unit and integration tests with testcontainers.
+- **Reviewed/adjusted:** profiling the real data revealed wrong counts in the ADR (65 products, 50 customers) and an email shared by two customers — recorded as assumption 13.
 
-## Fase 2 — Regras de preço e catálogo
+## Phase 2 — Pricing rules and catalog
 
-- **Gerado:** regras de preço do manual como funções puras (promoção, PIX, parcelamento por faixa, frete), consultas de catálogo com busca fuzzy, testes unitários com casos do manual e testes de integração com fixtures.
-- **Revisado/ajustado:** um teste que não provava o que dizia (parcelamento com promoção) foi reescrito com um caso em que a promoção muda o resultado; limitação das alternativas sugeridas registrada no plano.
+- **Generated:** the manual's pricing rules as pure functions (promotion, PIX, tiered installments, shipping), catalog queries with fuzzy search, unit tests with cases from the manual and integration tests with fixtures.
+- **Reviewed/adjusted:** a test that didn't prove what it claimed (installments with a promotion) was rewritten with a case where the promotion changes the result; the limitation of the suggested alternatives was recorded in the plan.
 
-## Fase 3 — Agente mínimo
+## Phase 3 — Minimal agent
 
-- **Gerado:** prompt de sistema (persona, dados da loja, horário com aberto/fechado), tools LangChain com valores já formatados, grafo LangGraph, CLI com modo roteirizado, testes E2E.
-- **Revisado/ajustado:** diagnóstico do erro 401 do OpenRouter isolando LangChain com chamada direta (problema era da conta); a validação manual pela CLI revelou que a busca cortava resultados sem avisar o agente — corrigido com `total_found`/`shown`.
+- **Generated:** system prompt (persona, store data, opening hours with open/closed status), LangChain tools with pre-formatted values, LangGraph graph, CLI with scripted mode, E2E tests.
+- **Reviewed/adjusted:** diagnosed an OpenRouter 401 error by isolating LangChain with a direct call (the problem was the account); manual validation through the CLI revealed that the search truncated results without telling the agent — fixed with `total_found`/`shown`.
 
-## Fase 4 — RAG do manual de políticas
+## Phase 4 — Policy manual RAG
 
-- **Gerado:** extração do PDF (modo layout do pypdf), chunking por seção numerada com validação de sequência, embeddings locais com fastembed, retriever, tool `search_policies`, PDF sintético para testes.
-- **Revisado/ajustado:** a estratégia de retrieval foi decidida por medição, não por suposição — 14 perguntas reais comparando busca vetorial (11/14 no top-3), full-text, híbrida e híbrida com seção completa (13/14). A extração padrão do pypdf quebrava cada palavra em uma linha; trocada pelo modo layout após inspeção.
+- **Generated:** PDF extraction (pypdf layout mode), chunking by numbered section with sequence validation, local embeddings with fastembed, retriever, `search_policies` tool, synthetic PDF for tests.
+- **Reviewed/adjusted:** the retrieval strategy was decided by measurement, not assumption — 14 real questions comparing vector search (11/14 in the top 3), full-text, hybrid, and hybrid with full sections (13/14). pypdf's default extraction put each word on its own line; switched to layout mode after inspection.
 
-## Fase 5 — Pedidos, LGPD e memória
+## Phase 5 — Orders, LGPD and memory
 
-- **Gerado:** prazos de devolução/troca/garantia, consulta de pedido com verificação de identidade, memória com `PostgresSaver`, retomada de conversa na CLI, modelo de LLM roteirizado para testes.
-- **Revisado/ajustado:** a validação manual revelou dois problemas que os testes não pegavam: (1) uma exceção em tool corrompia permanentemente a conversa salva — resolvido tratando erros no `ToolNode`; (2) o LLM recusava um pedido já verificado por desconfiar de um contato errado anterior — resolvido deixando explícito no prompt que a ferramenta decide a verificação. A falta de limite de tentativas foi registrada como limitação.
+- **Generated:** return/exchange/warranty deadlines, order lookup with identity verification, memory with `PostgresSaver`, conversation resume in the CLI, scripted LLM model for tests.
+- **Reviewed/adjusted:** manual validation revealed two problems the tests missed: (1) a tool exception permanently corrupted the saved conversation — solved by handling errors in the `ToolNode`; (2) the LLM refused an already verified order because it distrusted an earlier wrong contact — solved by making it explicit in the prompt that the tool decides verification. The lack of an attempt limit was recorded as a limitation.
 
-## Fase 6 — Guardrail e refinamento do prompt
+## Phase 6 — Guardrail and prompt refinement
 
-- **Gerado:** guardrail de escopo com saída estruturada, prompt do classificador, seções de reclamações e segurança no prompt do agente, testes de bloqueio e de falsos positivos.
-- **Revisado/ajustado:** classificador avaliado isoladamente antes de entrar no grafo (10/10, e `reasoning_effort="low"` escolhido por medir 2,8 s contra 4,0 s com a mesma precisão); latência total medida com e sem guardrail (+2,7 s na mediana) e registrada no ADR; a regressão E2E revelou que a nova seção de reclamações atrapalhava perguntas de defeito — corrigido e repetido 3 vezes para confirmar estabilidade.
+- **Generated:** scope guardrail with structured output, classifier prompt, complaint and security sections in the agent prompt, blocking and false-positive tests.
+- **Reviewed/adjusted:** the classifier was evaluated on its own before joining the graph (10/10, and `reasoning_effort="low"` chosen after measuring 2.8 s vs 4.0 s at the same accuracy); total latency measured with and without the guardrail (+2.7 s on the median) and recorded in the ADR; the E2E regression revealed that the new complaints section hurt defect questions — fixed and repeated 3 times to confirm stability.
 
-## Fase 7 — Interface Chainlit
+## Phase 7 — Chainlit interface
 
-- **Gerado:** camada de eventos independente do Chainlit (stream do LangGraph → eventos, ponte thread → async), `app.py` com starters e passos de tool, configuração do Chainlit, testes da camada de eventos.
-- **Revisado/ajustado:** a falta de streaming foi isolada até o provedor (chamada direta ao modelo, fora do grafo); o teste unitário revelou que respostas de modelos sem streaming sumiriam da tela; ao subir o servidor, descobriu-se que o Chainlit tentava usar o `DATABASE_URL` do projeto para a própria persistência. A validação no navegador ficou com o desenvolvedor.
-- **Categorias vazias:** o desenvolvedor notou, testando, que o agente oferecia cordas orquestrais e sopros (categorias sem produtos) e, corrigido isso, passou a recusar "cordas orquestrais" como se fosse acessório. O prompt agora lista só categorias com produtos e diferencia instrumento ausente de acessório; cenário coberto por E2E.
-- **LangGraph Studio:** a pedido, `langgraph.json` e um módulo que exporta o grafo sem o `PostgresSaver` (o servidor tem persistência própria); validado com uma conversa pela API do `langgraph dev` (tool de catálogo e guardrail funcionando, sem alertas de chamadas bloqueantes).
+- **Generated:** a Chainlit-independent event layer (LangGraph stream → events, thread → async bridge), `app.py` with starters and tool steps, Chainlit configuration, event layer tests.
+- **Reviewed/adjusted:** the missing streaming was traced to the provider (a direct model call, outside the graph); the unit test revealed that answers from non-streaming models would disappear from the screen; when starting the server, it turned out Chainlit was trying to use the project's `DATABASE_URL` for its own persistence. Browser validation was done by the developer.
+- **Empty categories:** while testing, the developer noticed the agent offered orchestral strings and winds (categories with no products) and, once that was fixed, started refusing "orchestral strings" as if it were an accessory. The prompt now lists only categories with products and tells a missing instrument apart from an accessory; scenario covered by E2E.
+- **LangGraph Studio:** on request, `langgraph.json` and a module that exports the graph without `PostgresSaver` (the server has its own persistence); validated with a conversation through the `langgraph dev` API (catalog tool and guardrail working, no blocking-call warnings).
 
-## Fase 8 — Evals e escolha do modelo
+## Phase 8 — Evals and model choice
 
-- **Gerado:** conjunto de 21 casos, pontuação com testes unitários, script que mede roteamento, fatos, latência e custo e gera relatórios comparativos; bateria isolada do guardrail para mensagens limítrofes.
-- **Revisado/ajustado:** cada falha foi lida na resposta completa antes de virar conclusão: duas eram falsos negativos da pontuação; uma (produto esgotado "não existe") era defeito da tool, corrigido no código. O modelo foi escolhido duas vezes: primeiro o DeepSeek, pelos evals; depois a regressão E2E mostrou que ele pulava instruções, e com o defeito da tool corrigido o desenvolvedor decidiu pelo Haiku. Também se descobriu que o custo saía zerado com streaming via OpenRouter (`stream_usage`).
+- **Generated:** a set of 21 cases, scoring with unit tests, a script that measures routing, facts, latency and cost and generates comparison reports; an isolated guardrail battery for borderline messages.
+- **Reviewed/adjusted:** every failure was read in the full answer before becoming a conclusion: two were false negatives in the scoring; one (out-of-stock product "doesn't exist") was a tool defect, fixed in code. The model was chosen twice: first DeepSeek, by the evals; then the E2E regression showed it skipped instructions, and with the tool defect fixed the developer chose Haiku. It also turned out cost was reported as zero when streaming through OpenRouter (`stream_usage`).
 
-## Entrega
+## Delivery
 
-- **Pedido:** fechar o projeto com README completo, exemplos de conversa e dados versionados, para quem clonar rodar tudo do zero.
-- **Gerado:** seções de decisões, suposições, limitações e uso do Claude Code no README; 5 conversas reais exportadas da CLI em `examples/`.
-- **Revisado/ajustado:** os valores de cada exemplo (preços, PIX, parcelas e prazos de devolução) foram conferidos contra as regras do manual antes de entrar no repositório; o teste de clone limpo validou que o README basta para subir o agente.
+- **Asked:** wrap up the project with a complete README, conversation examples and versioned data, so anyone cloning it can run everything from scratch; main documentation in English.
+- **Generated:** decisions, assumptions, limitations, next steps and Claude Code usage sections in the README; 5 real conversations exported from the CLI in `examples/`; English translation of the README, ADR and this log.
+- **Reviewed/adjusted:** the values in each example (prices, PIX, installments and return deadlines) were checked against the manual's rules before going into the repository; a clean-clone test confirmed the README is enough to get the agent running. The business next steps came from the developer.

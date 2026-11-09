@@ -293,6 +293,7 @@ Legenda: ⬜ pendente · 🟨 em andamento · ✅ concluída
 - `README.md`: instalação, configuração do modelo, comandos, decisões técnicas (resumo do ADR), suposições dos dados, limitações e próximos passos, uso do Claude Code.
 - `examples/`: 5 conversas reais exportadas da aplicação (catálogo e preço, informação da loja, pedido e devolução com política, promoções e políticas, fora de escopo).
 - `docs/ai-workflow.md` consolidado.
+- README, ADR 0001 e `docs/ai-workflow.md` em inglês; prompts, exemplos e guias internos seguem em pt-BR.
 
 **Validação (gate)**
 - [x] **Teste de clone limpo:** clone em outra pasta com banco Postgres vazio; seguindo só o README: `uv sync`, ingestão (65 produtos, 25 seções do manual), 163 testes unitários verdes e conversa pela CLI com tools de catálogo e de políticas.

@@ -1,39 +1,41 @@
-# Empório da Música — Agente de atendimento
+# Empório da Música — Customer Support Agent
 
-Assistente virtual da **Empório da Música**, loja de instrumentos musicais em Campo Grande/MS. Ele conversa com clientes por texto e responde sobre:
+Virtual assistant for **Empório da Música**, a musical instrument store in Campo Grande/MS, Brazil. It chats with customers over text and answers questions about:
 
-- **Catálogo:** produtos, preços, disponibilidade, PIX, parcelamento e promoções, consultando o banco de dados.
-- **Políticas da loja:** trocas, devoluções, garantia, frete, pagamento, consultando o manual de políticas (RAG).
-- **Informações gerais:** endereço, contatos e horário de funcionamento, incluindo se a loja está aberta agora.
-- **Pedidos:** status, itens, rastreio e prazos de devolução/troca/garantia, após confirmar o e-mail ou telefone do cliente.
+- **Catalog:** products, prices, availability, PIX payment, installments and promotions, by querying the database.
+- **Store policies:** exchanges, returns, warranty, shipping and payment, by searching the policy manual (RAG).
+- **General information:** address, contacts and opening hours, including whether the store is open right now.
+- **Orders:** status, items, tracking and return/exchange/warranty deadlines, after confirming the customer's email or phone.
 
-Dá para conversar pelo navegador (Chainlit) ou pelo terminal. As conversas ficam salvas no Postgres.
+You can chat in the browser (Chainlit) or in the terminal. Conversations are stored in Postgres.
 
-## Como funciona
+The agent talks to customers in Brazilian Portuguese, since it serves a store in Brazil. Prompts, agent answers and the [conversation examples](#conversation-examples) are therefore in pt-BR.
+
+## How it works
 
 ```
-Cliente ──► Guardrail de escopo ──(fora do escopo: responde sem tools)
+Customer ──► Scope guardrail ──(out of scope: answers without tools)
                │
                ▼
-            Agente (LangGraph + LLM via OpenRouter) ──► histórico da conversa no Postgres
-               ├── tools de catálogo ──► Postgres (SQL parametrizado, busca fuzzy)
-               ├── tool de políticas  ──► Postgres + pgvector (busca híbrida no manual)
-               └── tool de pedidos    ──► Postgres (só com e-mail ou telefone do cliente)
+            Agent (LangGraph + LLM via OpenRouter) ──► conversation history in Postgres
+               ├── catalog tools  ──► Postgres (parameterized SQL, fuzzy search)
+               ├── policy tool    ──► Postgres + pgvector (hybrid search over the manual)
+               └── order tool     ──► Postgres (only with the customer's email or phone)
 ```
 
-O guardrail barra pedidos de acessórios (a loja só vende instrumentos), assuntos fora da loja e tentativas de manipulação. Preços, PIX e parcelas são calculados no código, não pelo LLM. Decisões e justificativas: [ADR 0001](docs/adr/0001-agent-architecture.md).
+The guardrail blocks requests for accessories (the store only sells instruments), off-topic subjects and manipulation attempts. Prices, PIX discount and installments are calculated in code, not by the LLM. Decisions and their rationale: [ADR 0001](docs/adr/0001-agent-architecture.md).
 
-## Requisitos
+## Requirements
 
-| Ferramenta | Para quê |
+| Tool | Purpose |
 |---|---|
-| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Gerencia Python 3.12 e as dependências (baixa o Python sozinho). |
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Banco Postgres local e testes de integração. |
-| Conta no [OpenRouter](https://openrouter.ai/) | Chave de API para o LLM. |
+| [uv](https://docs.astral.sh/uv/getting-started/installation/) | Manages Python 3.12 and the dependencies (downloads Python by itself). |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) | Local Postgres database and integration tests. |
+| An [OpenRouter](https://openrouter.ai/) account | API key for the LLM. |
 
-## Primeiros passos
+## Getting started
 
-### 1. Instalar as dependências
+### 1. Install the dependencies
 
 ```powershell
 git clone https://github.com/gabrielsf-99/music-store-ai-agent.git
@@ -41,46 +43,46 @@ cd music-store-ai-agent
 uv sync
 ```
 
-### 2. Configurar o `.env`
+### 2. Configure `.env`
 
 ```powershell
 Copy-Item .env.example .env      # Linux/macOS: cp .env.example .env
 ```
 
-| Variável | O que colocar |
+| Variable | What to set |
 |---|---|
-| `OPENROUTER_API_KEY` | Sua chave do OpenRouter. |
-| `LLM_MODEL` | Modelo do OpenRouter com suporte a tools. O `.env.example` já traz o padrão, `anthropic/claude-haiku-5.5` (ver [Escolha do modelo](#escolha-do-modelo)). |
-| `POSTGRES_PASSWORD` | Uma senha para o banco local. |
-| `DATABASE_URL` | A mesma senha no lugar de `change-me`. Mantenha `127.0.0.1` (com `localhost`, cada conexão atrasa ~5 s no Windows). |
+| `OPENROUTER_API_KEY` | Your OpenRouter key. |
+| `LLM_MODEL` | An OpenRouter model with tool support. `.env.example` already has the default, `anthropic/claude-haiku-5.5` (see [Model choice](#model-choice)). |
+| `POSTGRES_PASSWORD` | A password for the local database. |
+| `DATABASE_URL` | The same password in place of `change-me`. Keep `127.0.0.1` (with `localhost`, each connection takes ~5 s longer on Windows). |
 
-As demais variáveis já vêm com valores padrão.
+The other variables already have default values.
 
-### 3. Subir o banco e carregar os dados
+### 3. Start the database and load the data
 
 ```powershell
 docker compose up -d db
 uv run python -m emporio.ingest
 ```
 
-Os dados da loja (6 CSVs e o manual de políticas em PDF) já estão em `data/`; o formato está em [data/README.md](data/README.md). A ingestão valida os dados, mostra avisos de inconsistência e carrega tudo em uma transação. Na primeira vez, baixa o modelo de embeddings (~0,22 GB, em `.cache/fastembed`). Pode ser executada de novo a qualquer momento: substitui o conteúdo anterior.
+The store data (6 CSVs and the policy manual in PDF) is already in `data/`; the format is described in [data/README.md](data/README.md). Ingestion validates the data, prints warnings about inconsistencies and loads everything in a single transaction. The first run downloads the embedding model (~0.22 GB, into `.cache/fastembed`). It can be run again at any time: it replaces the previous content.
 
-### 4. Conversar com o agente
+### 4. Chat with the agent
 
 ```powershell
-uv run chainlit run app.py          # navegador, em http://localhost:8000
-uv run python -m emporio.cli        # ou pelo terminal
+uv run chainlit run app.py          # browser, at http://localhost:8000
+uv run python -m emporio.cli        # or in the terminal
 ```
 
-## Usando o agente pelo terminal
+## Using the agent in the terminal
 
-### Modo interativo
+### Interactive mode
 
 ```powershell
 uv run python -m emporio.cli
 ```
 
-Digite as mensagens e `sair` para encerrar. Cada ferramenta consultada aparece antes da resposta:
+Type your messages and `sair` to quit. Each tool the agent calls is shown before the answer:
 
 ```
 Conversa: cli-3f2a...  (para continuar depois: --thread cli-3f2a...)
@@ -97,227 +99,228 @@ Você: Vocês vendem palhetas?
 Empório: Trabalhamos exclusivamente com instrumentos musicais, então não vendemos palhetas...
 ```
 
-### Modo roteirizado
+### Scripted mode
 
-Envia mensagens em sequência, na mesma conversa, sem interação. Útil para testar cenários:
+Sends messages in sequence, in the same conversation, without interaction. Useful for testing scenarios:
 
 ```powershell
 uv run python -m emporio.cli -m "Quais violões vocês têm até R$ 1000?" -m "E o Giannini GF-3D, tem?"
 ```
 
-### Retomar uma conversa
+### Resuming a conversation
 
-Toda conversa fica salva no Postgres com um id, mostrado no início da sessão. Para continuar de onde parou, mesmo depois de fechar o terminal:
+Every conversation is saved in Postgres with an id, shown at the start of the session. To pick up where you left off, even after closing the terminal:
 
 ```powershell
 uv run python -m emporio.cli --thread cli-3f2a...
 ```
 
-### Perguntas para experimentar
+### Questions to try
 
-| Tipo | Exemplo |
-|---|---|
-| Preço | "Quanto custa o Takamine GD20?" |
-| Catálogo | "Quais violões vocês têm até R$ 1000?" |
-| Produto esgotado | "Tem o Giannini GF-3D?" |
-| Promoções | "Tem alguma promoção rolando?" |
-| Política | "Me arrependi da compra, posso devolver?" |
-| Garantia | "Qual a garantia dos instrumentos?" |
-| Pedido | "Quero saber do meu pedido 1" → o agente pede o e-mail ou telefone da compra |
-| Devolução de um pedido | Depois de consultar o pedido: "Posso devolver?" |
-| Acessório | "Vocês vendem encordoamento?" |
-| Fora do escopo | "Quem ganhou o jogo ontem?" |
-| Reclamação | "Meu ukulele chegou riscado, estou chateado" |
+| Type | Example (pt-BR) | Meaning |
+|---|---|---|
+| Price | "Quanto custa o Takamine GD20?" | How much is the Takamine GD20? |
+| Catalog | "Quais violões vocês têm até R$ 1000?" | Which acoustic guitars do you have up to R$ 1,000? |
+| Out of stock | "Tem o Giannini GF-3D?" | Do you have the Giannini GF-3D? |
+| Promotions | "Tem alguma promoção rolando?" | Any promotions going on? |
+| Policy | "Me arrependi da compra, posso devolver?" | I regret the purchase, can I return it? |
+| Warranty | "Qual a garantia dos instrumentos?" | What is the warranty on instruments? |
+| Order | "Quero saber do meu pedido 1" | I want to know about my order 1 (the agent asks for the purchase email or phone) |
+| Order return | "Posso devolver?" | Can I return it? (after looking up the order) |
+| Accessory | "Vocês vendem encordoamento?" | Do you sell guitar strings? |
+| Off topic | "Quem ganhou o jogo ontem?" | Who won the game yesterday? |
+| Complaint | "Meu ukulele chegou riscado, estou chateado" | My ukulele arrived scratched, I'm upset |
 
-Os dados de clientes e pedidos para testar estão em `data/customers.csv` e `data/orders.csv`.
+Customer and order data for testing is in `data/customers.csv` and `data/orders.csv`.
 
-## Usando o agente pelo navegador
+## Using the agent in the browser
 
 ```powershell
 uv run chainlit run app.py
 ```
 
-Abre em http://localhost:8000. Para não abrir o navegador automaticamente, use `--headless`; para outra porta, `--port 8080`.
+Opens at http://localhost:8000. Use `--headless` to avoid opening the browser automatically, and `--port 8080` for another port.
 
-- **Sugestões iniciais:** botões com perguntas de exemplo (violões, promoções, trocas, pedido).
-- **Ferramentas visíveis:** cada consulta do agente aparece como um passo recolhível acima da resposta ("Buscando no catálogo", "Consultando o pedido"…), com a entrada e o resultado.
-- **Uma conversa por aba:** cada aba ou "Nova conversa" começa um atendimento novo, salvo no Postgres com id `web-<sessão>`.
-- **Readme:** o botão de informações mostra o `chainlit.md` com o que o assistente sabe fazer.
+- **Starters:** buttons with sample questions (guitars, promotions, exchanges, order).
+- **Visible tools:** each agent query shows up as a collapsible step above the answer ("Buscando no catálogo", "Consultando o pedido"…), with its input and result.
+- **One conversation per tab:** each tab or "New chat" starts a new session, saved in Postgres with id `web-<session>`.
+- **Readme:** the info button shows `chainlit.md`, describing what the assistant can do.
 
-A configuração da interface fica em `.chainlit/config.toml` (nome, idioma, exibição dos passos). Upload de arquivos e edição de mensagens estão desligados: o agente não lê arquivos, e editar uma mensagem duplicaria o turno no histórico salvo.
+The UI configuration lives in `.chainlit/config.toml` (name, language, step display). File upload and message editing are disabled: the agent doesn't read files, and editing a message would duplicate the turn in the saved history.
 
-A resposta aparece aos poucos, conforme o modelo gera o texto. Alguns modelos (ex.: `openai/gpt-6-luna-pro`) entregam a resposta de uma vez; com eles, ela aparece inteira no final.
+The answer streams in as the model generates it. Some models (e.g. `openai/gpt-6-luna-pro`) return the whole answer at once; with them, it appears at the end.
 
-## Inspecionando o agente no LangGraph Studio
+## Inspecting the agent in LangGraph Studio
 
-Para ver o grafo e depurar conversas passo a passo (estado de cada nó, chamadas de tool, decisão do guardrail):
+To see the graph and debug conversations step by step (state of each node, tool calls, guardrail decision):
 
 ```powershell
 uv run langgraph dev
 ```
 
-O servidor sobe em http://127.0.0.1:2024 e abre o Studio no navegador (`https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`). Use `--no-browser` para não abrir automaticamente. A configuração está em `langgraph.json`, que aponta para o grafo `emporio` em `src/emporio/agent/studio.py`.
+The server starts at http://127.0.0.1:2024 and opens Studio in the browser (`https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`). Use `--no-browser` to skip opening it. The configuration is in `langgraph.json`, which points to the `emporio` graph in `src/emporio/agent/studio.py`.
 
-É o mesmo agente da CLI e da interface web (guardrail, tools, banco e LLM reais), com uma diferença: as conversas ficam na persistência do próprio servidor de desenvolvimento (pasta `.langgraph_api/`), não no Postgres.
+It is the same agent as the CLI and the web UI (real guardrail, tools, database and LLM), with one difference: conversations are stored in the dev server's own persistence (`.langgraph_api/` folder), not in Postgres.
 
-## Escolha do modelo
+## Model choice
 
-O modelo padrão foi escolhido medindo, não por preferência: `uv run python -m evals.run` roda 21 casos de avaliação (catálogo, loja, políticas, pedidos, fora do escopo) contra os dados reais e mede se o agente usa a ferramenta certa, se a resposta traz os fatos esperados, a latência e o custo. Resultado da rodada final ([relatório](evals/reports/2026-11-08-0927-comparison.md)):
+The default model was chosen by measuring, not by preference. `uv run python -m evals.run` runs 21 evaluation cases (catalog, store info, policies, orders, out of scope) against the real data and measures whether the agent uses the right tool, whether the answer contains the expected facts, latency and cost. Final round results ([report](evals/reports/2026-11-08-0927-comparison.md)):
 
-| Modelo | Casos ok | Latência mediana / p95 | Custo por conversa | Resposta em partes |
+| Model | Cases passed | Median / p95 latency | Cost per conversation | Streaming |
 |---|---|---|---|---|
-| **`anthropic/claude-haiku-5.5`** (padrão) | 21/21 | 4,4 s / 6,0 s | US$ 0,0010 | sim |
-| `deepseek/deepseek-v4-flash` | 21/21 | 6,2 s / 16,8 s | US$ 0,0006 | sim |
-| `openai/gpt-6-luna-pro` | 21/21 | 11,9 s / 16,9 s | US$ 0,0019 | não |
+| **`anthropic/claude-haiku-5.5`** (default) | 21/21 | 4.4 s / 6.0 s | US$ 0.0010 | yes |
+| `deepseek/deepseek-v4-flash` | 21/21 | 6.2 s / 16.8 s | US$ 0.0006 | yes |
+| `openai/gpt-6-luna-pro` | 21/21 | 11.9 s / 16.9 s | US$ 0.0019 | no |
 
-Com os três empatados em acerto, o Haiku venceu por ser o mais rápido e o mais estável, e foi o único que passou em todos os testes E2E: o DeepSeek, mais barato, às vezes pulava consultas obrigatórias ao catálogo. Para trocar de modelo, mude `LLM_MODEL` no `.env` e rode os evals. Como avaliar: [docs/testing.md](docs/testing.md#avaliação-evals).
+With all three tied on accuracy, Haiku won for being the fastest and most stable, and it was the only one to pass every E2E test: DeepSeek, the cheapest, sometimes skipped mandatory catalog lookups. To switch models, change `LLM_MODEL` in `.env` and run the evals. How to evaluate: [docs/testing.md](docs/testing.md#avaliação-evals).
 
-## Exemplos de conversa
+## Conversation examples
 
-Conversas reais exportadas da CLI, com as tools chamadas e as decisões do guardrail:
+Real conversations exported from the CLI (in pt-BR), showing the tools called and the guardrail decisions:
 
-| Exemplo | O que mostra |
+| Example | What it shows |
 |---|---|
-| [Catálogo e preço](examples/01-catalog-and-pricing.md) | Busca por categoria e preço, produto esgotado com alternativas, PIX e parcelamento. |
-| [Informações da loja](examples/02-store-info.md) | Endereço, horário e contato; se a loja está aberta agora. |
-| [Pedido e devolução](examples/03-order-and-return.md) | Verificação de identidade, prazos do pedido e política de garantia no turno seguinte. |
-| [Promoções e políticas](examples/04-promotions-and-policies.md) | Promoções sem PIX acumulado, garantia e frete pelo manual. |
-| [Fora do escopo](examples/05-out-of-scope.md) | Acessório, assunto fora da loja e tentativa de manipulação barrados pelo guardrail. |
+| [Catalog and pricing](examples/01-catalog-and-pricing.md) | Search by category and price, out-of-stock product with alternatives, PIX and installments. |
+| [Store information](examples/02-store-info.md) | Address, opening hours and contact; whether the store is open now. |
+| [Order and return](examples/03-order-and-return.md) | Identity verification, order deadlines and warranty policy in the following turn. |
+| [Promotions and policies](examples/04-promotions-and-policies.md) | Promotions without stacking the PIX discount, warranty and shipping from the manual. |
+| [Out of scope](examples/05-out-of-scope.md) | Accessory, off-topic subject and manipulation attempt blocked by the guardrail. |
 
-## Decisões técnicas
+## Technical decisions
 
-Resumo do [ADR 0001](docs/adr/0001-agent-architecture.md), que traz as alternativas consideradas:
+Summary of [ADR 0001](docs/adr/0001-agent-architecture.md), which also lists the alternatives considered:
 
-| Decisão | Escolha | Por quê |
+| Decision | Choice | Why |
 |---|---|---|
-| Abordagem | Agente híbrido: function calling (ReAct) para dados estruturados e RAG só para o manual | O LLM decide qual fonte consultar, inclusive em perguntas mistas ("o GD20 tem desconto no PIX?"). |
-| Dados estruturados | Tools com SQL parametrizado | Sem text-to-SQL: evita vazar dados de clientes e consultas erradas. |
-| Manual de políticas | RAG híbrido (pgvector + full-text em português, fusão RRF), devolvendo as 2 seções mais relevantes completas | Medido com 14 perguntas: só vetorial acertou 11; híbrido com seção completa, 13. |
-| Busca de produto por nome | `pg_trgm` (similaridade de texto) | Cliente escreve "gd20" ou "takamine gd 20"; 65 produtos não justificam embeddings. |
-| Cálculos | Promoção, PIX, parcelamento e prazos no código | O LLM erra aritmética; o manual proíbe informar preço sem consultar o sistema. |
-| Privacidade | Pedido só com e-mail ou telefone da compra, comparado com o cliente do pedido | LGPD: nunca expor dados de outro cliente. |
-| Escopo | Guardrail com saída estruturada antes do agente | Barra acessórios, assuntos fora da loja e manipulação sem gastar tools. |
-| Orquestração e memória | LangGraph com `PostgresSaver` | Nó de guardrail explícito e histórico por conversa que sobrevive a reinícios. |
-| Banco | PostgreSQL 16 com pgvector, acessado só por `DATABASE_URL` | Um banco para dados, vetores e histórico; roda local, no Supabase ou numa VPS. |
-| LLM | OpenRouter, modelo em `LLM_MODEL` | Trocar de modelo sem mudar código; escolha feita pelos evals. |
-| Embeddings | Modelo local multilíngue (fastembed) | Sem custo nem segunda chave de API; bom em português. |
-| Interface | Chainlit + CLI | Python puro, com as tools visíveis em cada resposta. |
+| Approach | Hybrid agent: function calling (ReAct) for structured data and RAG only for the manual | The LLM decides which source to query, including mixed questions ("does the GD20 get the PIX discount?"). |
+| Structured data | Tools with parameterized SQL | No text-to-SQL: avoids leaking customer data and wrong queries. |
+| Policy manual | Hybrid RAG (pgvector + Portuguese full-text search, RRF fusion), returning the 2 most relevant full sections | Measured with 14 questions: vector-only got 11 right; hybrid with full sections, 13. |
+| Product search by name | `pg_trgm` (text similarity) | Customers type "gd20" or "takamine gd 20"; 65 products don't justify embeddings. |
+| Calculations | Promotion, PIX, installments and deadlines in code | LLMs get arithmetic wrong; the manual forbids quoting prices without checking the system. |
+| Privacy | Orders only with the purchase email or phone, matched against the order's customer | LGPD (Brazil's data protection law): never expose another customer's data. |
+| Scope | Guardrail with structured output before the agent | Blocks accessories, off-topic subjects and manipulation without spending tool calls. |
+| Orchestration and memory | LangGraph with `PostgresSaver` | Explicit guardrail node and per-conversation history that survives restarts. |
+| Database | PostgreSQL 16 with pgvector, accessed only through `DATABASE_URL` | One database for data, vectors and history; runs locally, on Supabase or on a VPS. |
+| LLM | OpenRouter, model set in `LLM_MODEL` | Switch models without code changes; choice made by the evals. |
+| Embeddings | Local multilingual model (fastembed) | No cost or second API key; good in Portuguese. |
+| Interface | Chainlit + CLI | Pure Python, with tools visible in each answer. |
 
-## Suposições sobre os dados
+## Data assumptions
 
-Os dados têm divergências que exigiram uma decisão. As principais (lista completa no [ADR 0001, seção 3](docs/adr/0001-agent-architecture.md#3-suposições-e-inconsistências-dos-dados)):
+The data has inconsistencies that required a decision. The main ones (full list in [ADR 0001, section 3](docs/adr/0001-agent-architecture.md#3-data-assumptions-and-inconsistencies)):
 
-| Divergência | Decisão |
+| Inconsistency | Decision |
 |---|---|
-| Dois números de WhatsApp no manual | (67) 3341-4444, o da capa e da tabela de dados da empresa. |
-| E-mail da loja com e sem acento | `contato@emporiodamusica.com.br`, sem acento. |
-| Parcela mínima: R$ 100 na tabela vs faixas na seção 3.1 | Vale a seção 3.1: até 3x com parcela mínima de R$ 50, 4–6x de R$ 80, 7–12x de R$ 100. |
-| Pedidos 3 e 20 com total diferente da soma dos itens | O total registrado vale; a ingestão emite aviso. |
-| Produto `active` com estoque zero | Disponível = `active` e estoque maior que zero. |
-| Categorias sem produtos (sopros, cordas orquestrais) | Não são oferecidas; se o cliente perguntar, o agente consulta e informa que não há. |
-| Não há data de recebimento | A previsão de entrega é usada como data de recebimento nos prazos de devolução. |
-| Mais de uma promoção para o mesmo produto | Só as ativas; se houver mais de uma, a de maior desconto (não acumulam). |
-| Dois clientes com o mesmo e-mail | A verificação compara o contato com o cliente do pedido, nunca busca cliente por e-mail. |
-| Status dos pedidos sem definição | `pending`, `confirmed`, `shipped`, `delivered` e `cancelled` com significado definido no ADR. |
-| Pedidos sem canal de venda | Tratados como compras online: vale o direito de arrependimento. |
+| Two WhatsApp numbers in the manual | (67) 3341-4444, the one on the cover and in the company data table. |
+| Store email with and without an accent | `contato@emporiodamusica.com.br`, without the accent. |
+| Minimum installment: R$ 100 in the table vs tiers in section 3.1 | Section 3.1 wins: up to 3x with a R$ 50 minimum, 4–6x with R$ 80, 7–12x with R$ 100. |
+| Orders 3 and 20 with a total different from the sum of items | The recorded total wins; ingestion prints a warning. |
+| `active` product with zero stock | Available = `active` and stock greater than zero. |
+| Categories with no products (winds, orchestral strings) | Not offered; if the customer asks, the agent checks the catalog and says there are none. |
+| No delivery date | The estimated delivery date is used as the delivery date for return deadlines. |
+| More than one promotion for the same product | Only active ones count; if more than one is active, the largest discount applies (they don't stack). |
+| Two customers with the same email | Verification matches the contact against the order's customer and never looks a customer up by email. |
+| Undefined order statuses | `pending`, `confirmed`, `shipped`, `delivered` and `cancelled`, with meanings defined in the ADR. |
+| Orders without a sales channel | Treated as online purchases: the right of withdrawal applies. |
 
-## Limitações
+## Limitations
 
-| Limitação | Impacto |
+| Limitation | Impact |
 |---|---|
-| A verificação de pedido não limita tentativas. | Dá para testar vários e-mails ou telefones para o mesmo pedido. |
-| O guardrail é uma chamada extra de LLM. | +2,7 s na mediana de cada resposta. |
-| Dois cadastros compartilham o mesmo e-mail. | Quem usa esse e-mail vê os pedidos dos dois. |
-| Alternativas a um produto esgotado consideram só categoria e preço. | Para um violão de nylon, pode sugerir um de aço. |
-| O frete não é calculado por CEP. | O agente informa modalidades e prazos, mas não o valor. |
-| Resultados das tools vão para o provedor do LLM. | Primeiro nome e itens do pedido saem via OpenRouter (e-mail, telefone e sobrenome não). |
-| Reclamações não são registradas. | O agente só encaminha para a equipe. |
-| Sem observabilidade nem CI. | Sem tracing das conversas e sem testes a cada push. |
+| Order verification doesn't limit attempts. | Someone can try several emails or phones for the same order. |
+| The guardrail is an extra LLM call. | +2.7 s on the median response time. |
+| Two customer records share the same email. | Whoever uses that email sees both customers' orders. |
+| Alternatives to an out-of-stock product consider only category and price. | For a nylon-string guitar, it may suggest a steel-string one. |
+| Shipping is not calculated by postal code. | The agent explains shipping options and delivery times, but not the cost. |
+| Tool results are sent to the LLM provider. | First name and order items go through OpenRouter (email, phone and last name don't). |
+| Complaints are not recorded. | The agent only refers the customer to the team. |
+| No observability or CI. | No conversation tracing and no tests on every push. |
 
-## Próximos passos
+## Next steps
 
-**Negócio**
+**Business**
 
-| Próximo passo | Objetivo |
+| Next step | Goal |
 |---|---|
-| Integrar com gateway de pagamento | Fechar o pedido dentro da conversa. |
-| Integrar com a API do WhatsApp ou Evolution API | Atender no canal que o cliente já usa. |
-| Cadastro de clientes | Reconhecer quem está falando e dispensar a confirmação de contato a cada pedido. |
-| Recuperação de acesso | Permitir que o cliente recupere a conta (ex.: código por e-mail ou WhatsApp). |
-| Mensagens de push com promoções | Aumentar a conversão com notificações segmentadas por interesse. |
-| Fotos dos produtos nas mensagens, inclusive POV | Aumentar a percepção de valor e deixar a conversa mais real e humanizada. |
+| Integrate with a payment gateway | Close the order inside the conversation. |
+| Integrate with the WhatsApp API or Evolution API | Serve customers on the channel they already use. |
+| Customer registration | Recognize who is talking and skip the contact confirmation on every order. |
+| Account recovery | Let customers recover their account (e.g. a code sent by email or WhatsApp). |
+| Push messages with promotions | Increase conversion with notifications segmented by interest. |
+| Product photos in messages, including POV shots | Increase perceived value and make the conversation feel more real and human. |
 
-**Técnicos**
+**Technical**
 
-| Próximo passo | Resolve |
+| Next step | Addresses |
 |---|---|
-| Contador de falhas de verificação por conversa, bloqueando após N tentativas | Tentativas ilimitadas. |
-| Rodar guardrail e agente em paralelo | Latência do guardrail. |
-| Verificar por telefone quando o e-mail não for único | E-mail compartilhado. |
-| Priorizar especificações parecidas nas alternativas | Sugestões fora do tipo do produto. |
-| Integrar com a API dos Correios ou da transportadora | Frete por CEP. |
-| Contrato de tratamento de dados e provedores sem retenção no OpenRouter | Dados enviados ao provedor do LLM. |
-| Tool que abre um chamado de reclamação | Reclamações não registradas. |
-| LangSmith ou Langfuse; testes unitários e de integração a cada push | Observabilidade e CI. |
+| Per-conversation counter of failed verifications, blocking after N attempts | Unlimited attempts. |
+| Run the guardrail and the agent in parallel | Guardrail latency. |
+| Verify by phone when the email is not unique | Shared email. |
+| Prioritize similar specs in alternatives | Suggestions of a different product type. |
+| Integrate with the Correios (Brazilian postal service) or carrier API | Shipping by postal code. |
+| Data processing agreement and zero-retention providers on OpenRouter | Data sent to the LLM provider. |
+| Tool that opens a complaint ticket | Unrecorded complaints. |
+| LangSmith or Langfuse; unit and integration tests on every push | Observability and CI. |
 
-## Uso do Claude Code
+## Use of Claude Code
 
-O projeto foi desenvolvido com o Claude Code como par de programação, fase a fase, seguindo o [plano de desenvolvimento](docs/development-plan.md). O [CLAUDE.md](CLAUDE.md) define as regras que ele segue: arquitetura do ADR, SQL parametrizado, cálculos no código, teste para toda lógica nova e commits pequenos, executados pelo desenvolvedor.
+The project was built with Claude Code as a pair programmer, phase by phase, following the [development plan](docs/development-plan.md). [CLAUDE.md](CLAUDE.md) defines the rules it follows: the ADR architecture, parameterized SQL, calculations in code, tests for every new piece of logic, and small commits run by the developer.
 
-O assistente gerou código, testes e documentação; as decisões e as validações ficaram com o desenvolvedor. Várias correções vieram de testes manuais e de medições, não da primeira versão gerada: a estratégia de retrieval foi escolhida medindo, a interface revelou que o agente oferecia categorias vazias, e os evals mostraram que a busca escondia produtos esgotados. O registro de cada etapa (o que foi pedido, o que foi gerado e o que mudou na revisão) está em [docs/ai-workflow.md](docs/ai-workflow.md).
+The assistant generated code, tests and documentation; decisions and validation stayed with the developer. Several fixes came from manual testing and measurement rather than from the first generated version: the retrieval strategy was chosen by measuring, the UI revealed that the agent offered empty categories, and the evals showed that the search hid out-of-stock products. The log of each phase (what was asked, what was generated and what changed in review) is in [docs/ai-workflow.md](docs/ai-workflow.md).
 
-## Comandos úteis
+## Useful commands
 
-| Comando | Para quê |
+| Command | Purpose |
 |---|---|
-| `uv run python -m emporio.db` | Testa a conexão com o banco. |
-| `uv run python -m emporio.ingest --data-dir <pasta>` | Ingestão a partir de outra pasta. |
-| `docker compose down` | Para o banco (os dados ficam no volume). |
-| `docker compose down -v` | Para o banco e apaga os dados. |
-| `uv run pytest` | Testes unitários. Guia completo em [docs/testing.md](docs/testing.md). |
-| `uv run python -m evals.run` | Avaliação do agente (qualidade, latência e custo); consome tokens. |
+| `uv run python -m emporio.db` | Tests the database connection. |
+| `uv run python -m emporio.ingest --data-dir <folder>` | Runs ingestion from another folder. |
+| `docker compose down` | Stops the database (data stays in the volume). |
+| `docker compose down -v` | Stops the database and deletes the data. |
+| `uv run pytest` | Unit tests. Full guide in [docs/testing.md](docs/testing.md). |
+| `uv run python -m evals.run` | Agent evaluation (quality, latency and cost); uses tokens. |
 
-## Problemas comuns
+## Troubleshooting
 
-| Sintoma | Causa e solução |
+| Symptom | Cause and fix |
 |---|---|
-| `uv` ou `docker` não reconhecido | O terminal foi aberto antes da instalação. Abra um terminal novo. |
-| Conexão com o banco demora ~5 s | `DATABASE_URL` com `localhost`. Troque por `127.0.0.1`. |
-| `missing input files in data` | Faltam arquivos em `data/`; a mensagem lista quais. |
-| `401` ao conversar | Chave do OpenRouter inválida ou conta sem acesso. Gere uma nova chave no painel. |
-| Erro de coluna em `policy_chunks` na ingestão | Banco criado com um schema anterior. Rode `docker compose down -v` e repita o passo 3. |
-| Agente responde "não foi possível consultar agora" | Uma tool falhou; o erro completo aparece no terminal. Causa comum: banco sem dados (`relation ... does not exist`) — rode a ingestão. |
-| `address already in use` ao subir a interface web | A porta 8000 está ocupada. Use `uv run chainlit run app.py --port 8080`. |
-| Studio mostra "Failed to fetch" | O navegador bloqueia o acesso de `smith.langchain.com` ao servidor local. No cadeado da URL → Configurações do site → **Acesso à rede local** → Permitir (no Brave, desative o Shields para o site). |
+| `uv` or `docker` not recognized | The terminal was opened before the installation. Open a new one. |
+| Database connection takes ~5 s | `DATABASE_URL` uses `localhost`. Change it to `127.0.0.1`. |
+| `missing input files in data` | Files are missing in `data/`; the message lists which ones. |
+| `401` when chatting | Invalid OpenRouter key or account without access. Generate a new key in the dashboard. |
+| Column error in `policy_chunks` during ingestion | Database created with an older schema. Run `docker compose down -v` and repeat step 3. |
+| Agent answers "não foi possível consultar agora" | A tool failed; the full error appears in the terminal. Common cause: database without data (`relation ... does not exist`) — run the ingestion. |
+| `address already in use` when starting the web UI | Port 8000 is taken. Use `uv run chainlit run app.py --port 8080`. |
+| Studio shows "Failed to fetch" | The browser blocks `smith.langchain.com` from reaching the local server. Click the padlock in the address bar → Site settings → **Local network access** → Allow (in Brave, turn off Shields for the site). |
 
-## Estrutura do projeto
+## Project structure
 
 ```
-data/                 dados da loja: CSVs e manual de políticas (formato em data/README.md)
-docs/                 ADRs, plano, guias de testes e de contribuição
+data/                 store data: CSVs and policy manual (format in data/README.md)
+docs/                 ADRs, plan, testing and contributing guides
 src/emporio/
-  agent/              grafo LangGraph, guardrail, tools expostas ao LLM e memória
-  db/                 conexão, pool e schema SQL
-  domain/             regras de negócio (preços, prazos de devolução, horário da loja)
-  ingest/             pipeline de ingestão (CSVs e PDF)
-  prompts/            prompts do agente e do guardrail
-  rag/                embeddings e busca no manual de políticas
-  tools/              consultas ao catálogo e a pedidos
-  ui/                 eventos da conversa para a interface web
-  cli.py              chat no terminal
-app.py                interface web (Chainlit)
-langgraph.json        configuração do `langgraph dev` / LangGraph Studio
-chainlit.md           texto de apresentação da interface web
-.chainlit/            configuração do Chainlit
-evals/                casos de avaliação, script e relatórios
-examples/             conversas reais com o agente
-tests/                unit, integration e e2e
+  agent/              LangGraph graph, guardrail, tools exposed to the LLM and memory
+  db/                 connection, pool and SQL schema
+  domain/             business rules (prices, return deadlines, store hours)
+  ingest/             ingestion pipeline (CSVs and PDF)
+  prompts/            agent and guardrail prompts
+  rag/                embeddings and policy manual search
+  tools/              catalog and order queries
+  ui/                 conversation events for the web UI
+  cli.py              terminal chat
+app.py                web UI (Chainlit)
+langgraph.json        `langgraph dev` / LangGraph Studio configuration
+chainlit.md           web UI welcome text
+.chainlit/            Chainlit configuration
+evals/                evaluation cases, script and reports
+examples/             real conversations with the agent
+tests/                unit, integration and e2e
 ```
 
-## Documentação
+## Documentation
 
-- [Guia de contribuição](docs/contributing.md): fluxo de desenvolvimento, padrões e como estender o agente.
-- [Testes](docs/testing.md): camadas, comandos e fixtures.
-- [Plano de desenvolvimento](docs/development-plan.md): fases e critérios de validação.
-- [ADR 0001](docs/adr/0001-agent-architecture.md): arquitetura, decisões e suposições sobre os dados.
-- [Uso do Claude Code](docs/ai-workflow.md): como o assistente de IA foi usado no projeto.
+- [ADR 0001](docs/adr/0001-agent-architecture.md): architecture, decisions and data assumptions.
+- [Use of Claude Code](docs/ai-workflow.md): how the AI assistant was used in the project.
+- In Portuguese (internal development guides):
+  - [Contributing guide](docs/contributing.md): development workflow, standards and how to extend the agent.
+  - [Testing](docs/testing.md): layers, commands and fixtures.
+  - [Development plan](docs/development-plan.md): phases and validation criteria.

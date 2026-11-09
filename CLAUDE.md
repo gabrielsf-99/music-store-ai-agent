@@ -20,7 +20,7 @@ A arquitetura está definida em [docs/adr/0001-agent-architecture.md](docs/adr/0
 ## Princípios de implementação
 
 - **Python é a linguagem principal** (requisito do projeto). Não introduzir frontend em JS.
-- **Idioma:** nomes de arquivos e pastas, código, identificadores, nomes de tools e mensagens de commit em **inglês** (`snake_case` para arquivos Python, `kebab-case` para docs). Conteúdo da documentação e textos voltados ao cliente (prompts, respostas) em **pt-BR**.
+- **Idioma:** nomes de arquivos e pastas, código, identificadores, nomes de tools e mensagens de commit em **inglês** (`snake_case` para arquivos Python, `kebab-case` para docs). Documentação principal (README, ADRs, `docs/ai-workflow.md`) em **inglês**; textos voltados ao cliente (prompts, respostas, `examples/`) e guias internos (`docs/development-plan.md`, `docs/testing.md`, `docs/contributing.md`, `data/README.md`) em **pt-BR**.
 - **Banco agnóstico de provedor:** nada de SDK do Supabase; só SQL via `DATABASE_URL`. Tabelas no schema `emporio` (não em `public`).
 - **Dados estruturados → tools com SQL parametrizado.** Nunca text-to-SQL livre; nunca concatenar input do usuário em SQL.
 - **RAG apenas para o manual de políticas**, chunk por seção, com metadado da seção.

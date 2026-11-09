@@ -1,6 +1,6 @@
 # Testes
 
-Estratégia e motivação das camadas: [ADR 0001, seção 2.6](adr/0001-agent-architecture.md#26-estratégia-de-testes).
+Estratégia e motivação das camadas: [ADR 0001, seção 2.6](adr/0001-agent-architecture.md#26-testing-strategy).
 
 ## Pré-requisitos
 
